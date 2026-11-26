@@ -1,0 +1,1 @@
+{ "name": "Telecomando Salotto", "short_name": "Telecomando", "start_url": "/", "display": "standalone", "background_color": "#0b0d12", "theme_color": "#0b0d12", "orientation": "portrait", "icons": [{ "src": "icona.svg", "sizes": "any", "type": "image/svg+xml" }] }

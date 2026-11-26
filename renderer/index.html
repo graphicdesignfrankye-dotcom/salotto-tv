@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file: data: http: https: blob:; media-src http: https: blob: data:; connect-src http: https: blob:; worker-src blob:; style-src 'self' 'unsafe-inline'">
+  <title>Salotto</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="sfondo" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <main id="home">
+    <header class="barra">
+      <div class="marchio" id="marchio">Salotto</div>
+      <div class="stati">
+        <span class="chip" id="chip-telefono" hidden>Telefono collegato</span>
+        <span class="chip" id="chip-dlna" hidden>Ricevitore attivo</span>
+      </div>
+      <div class="ora" id="ora">--:--</div>
+    </header>
+
+    <section class="eroe">
+      <p class="saluto" id="saluto">Ciao</p>
+      <p class="data" id="data"></p>
+      <p class="suggerimento" id="suggerimento">Usa le frecce e Invio. <kbd>Esc</kbd> torna indietro.</p>
+    </section>
+
+    <section class="riga">
+      <h2>Le tue app</h2>
+      <div class="fila" id="fila-app"></div>
+    </section>
+
+    <section class="riga">
+      <h2>Salotto</h2>
+      <div class="fila" id="fila-strumenti">
+        <button class="f tessera strumento" data-azione="telecomando"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><circle cx="12" cy="17.5" r="1.2"/></svg><span>Telecomando</span><small>Usa il telefono</small></button>
+        <button class="f tessera strumento" data-azione="trasmetti"><svg viewBox="0 0 24 24"><path d="M3 18a3 3 0 0 1 3 3M3 14a7 7 0 0 1 7 7M3 10a11 11 0 0 1 11 11"/><path d="M3 7V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/></svg><span>Trasmetti al PC</span><small>Video e foto dal telefono</small></button>
+        <button class="f tessera strumento" data-azione="store"><svg viewBox="0 0 24 24"><path d="M4 7h16l-1.2 11.2a2 2 0 0 1-2 1.8H7.2a2 2 0 0 1-2-1.8z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg><span>Store</span><small>Aggiungi app e servizi</small></button>
+        <button class="f tessera strumento" data-azione="impostazioni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Impostazioni</span><small>App, avvio, ricevitore</small></button>
+        <button class="f tessera strumento" data-azione="energia"><svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.3 7.3a8 8 0 1 0 11.4 0"/></svg><span>Spegni</span><small>Sospendi, riavvia, esci</small></button>
+      </div>
+    </section>
+  </main>
+
+  <div id="pannello" class="pannello" hidden>
+    <div class="scheda" id="scheda" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <div id="lettore" hidden>
+    <video id="video" playsinline></video>
+    <img id="foto" alt="" hidden>
+    <div class="copertina-audio" id="copertina-audio" hidden><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+    <div class="osd" id="osd">
+      <div class="osd-titolo" id="osd-titolo"></div>
+      <div class="osd-barra"><div id="osd-avanzamento"></div></div>
+      <div class="osd-tempi"><span id="osd-pos">0:00</span><span id="osd-stato"></span><span id="osd-dur">0:00</span></div>
+    </div>
+  </div>
+
+  <div id="apertura" hidden aria-live="polite">
+    <div class="apertura-centro">
+      <div class="apertura-logo" id="apertura-logo"></div>
+      <div class="apertura-nome" id="apertura-nome"></div>
+      <div class="apertura-punti" aria-hidden="true"><i></i><i></i><i></i></div>
+    </div>
+  </div>
+
+  <div id="avviso" role="status" aria-live="polite"></div>
+
+  <script src="vendor/hls.min.js"></script>
+  <script src="catalogo.js"></script>
+  <script src="loghi/indice.js"></script>
+  <script src="app.js"></script>
+  <script src="impostazioni.js"></script>
+</body>
+</html>

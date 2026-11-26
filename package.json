@@ -1,0 +1,63 @@
+{
+  "name": "salotto-tv",
+  "productName": "Salotto",
+  "version": "0.1.19",
+  "private": true,
+  "description": "Trasforma il PC Windows in una TV: launcher a schermo intero, telecomando dal telefono, ricevitore DLNA",
+  "main": "electron/main.cjs",
+  "author": "Francesco Argento",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "finestra": "electron . --finestra",
+    "test": "node --test test/*.test.cjs",
+    "dist:win": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "it.salotto.tv",
+    "productName": "Salotto",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**",
+      "renderer/**",
+      "remote/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false,
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "uninstallDisplayName": "${productName}",
+      "include": "build/installer.nsh",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
+    },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "afterPack": "build/afterPack.cjs"
+  },
+  "dependencies": {
+    "hls.js": "^1.7.4",
+    "qrcode": "^1.5.4",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0",
+    "resedit": "^3.1.0"
+  }
+}

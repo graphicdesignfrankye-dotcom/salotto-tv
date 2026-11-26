@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Telecomando">
+  <link rel="manifest" href="manifest.json">
+  <title>Telecomando Salotto</title>
+  <link rel="stylesheet" href="telecomando.css">
+</head>
+<body>
+  <section id="accesso" hidden>
+    <h1>Collega il telefono</h1>
+    <p>Scrivi il PIN che vedi sulla TV<br>(Salotto → Telecomando).</p>
+    <form id="form-pin">
+      <input id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" aria-label="PIN" placeholder="••••">
+      <button type="submit">Collega</button>
+    </form>
+    <p id="errore-pin" class="errore" hidden>PIN sbagliato, riprova.</p>
+  </section>
+
+  <section id="telecomando" hidden>
+    <header>
+      <span id="nome-tv">Salotto</span>
+      <span id="stato" class="stato">collegamento…</span>
+    </header>
+
+    <nav class="schede" role="tablist">
+      <button role="tab" aria-selected="true" data-scheda="frecce">Frecce</button>
+      <button role="tab" aria-selected="false" data-scheda="mouse">Touchpad</button>
+    </nav>
+
+    <div id="frecce" class="area">
+      <div class="croce">
+        <button class="dir su" data-cmd="up" aria-label="Su"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+        <button class="dir sx" data-cmd="left" aria-label="Sinistra"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="ok" data-cmd="ok">OK</button>
+        <button class="dir dx" data-cmd="right" aria-label="Destra"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="dir giu" data-cmd="down" aria-label="Giù"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      </div>
+    </div>
+
+    <div id="mouse" class="area" hidden>
+      <div id="pad" class="pad"><span>Trascina per muovere il puntatore<br>Tocca per fare clic · due dita per scorrere</span></div>
+    </div>
+
+    <div class="tasti">
+      <button data-cmd="back" aria-label="Indietro"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+      <button data-cmd="home" aria-label="Home"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></button>
+      <button data-cmd="playpause" aria-label="Play o pausa"><svg viewBox="0 0 24 24"><path d="M5 4l9 8-9 8z"/><path d="M17 5v14M21 5v14"/></svg></button>
+      <button id="apri-tastiera" aria-label="Tastiera"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
+    </div>
+    <div class="tasti volume">
+      <button data-cmd="voldown" aria-label="Volume giù"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M16 12h5"/></svg></button>
+      <button data-cmd="mute" aria-label="Muto"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/></svg></button>
+      <button data-cmd="volup" aria-label="Volume su"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M16 12h5M18.5 9.5v5"/></svg></button>
+    </div>
+
+    <form id="tastiera" class="tastiera" hidden>
+      <input id="testo" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Scrivi qui e premi Invio" enterkeyhint="send">
+      <button type="button" data-cmd="cancella" aria-label="Cancella">⌫</button>
+      <button type="submit">Invia</button>
+    </form>
+  </section>
+
+  <script src="telecomando.js"></script>
+</body>
+</html>
