@@ -10,7 +10,10 @@ const ascolta = (canale) => (fn) => {
 contextBridge.exposeInMainWorld('tv', {
   impostazioni: () => ipcRenderer.invoke('impostazioni'),
   salva: (chiave, valore) => ipcRenderer.invoke('salva', chiave, valore),
-  apri: (id) => ipcRenderer.invoke('apri', id),
+  apri: (id, extra) => ipcRenderer.invoke('apri', id, extra),
+  tmdbSchermata: (tipo) => ipcRenderer.invoke('tmdb-schermata', tipo),
+  tmdbDettagli: (tipo, id) => ipcRenderer.invoke('tmdb-dettagli', tipo, id),
+  tmdbChiave: (chiave) => ipcRenderer.invoke('tmdb-chiave', chiave),
   esiste: (percorso) => ipcRenderer.invoke('esiste', percorso),
   home: () => ipcRenderer.invoke('home'),
   energia: (azione) => ipcRenderer.invoke('energia', azione),
@@ -28,4 +31,9 @@ contextBridge.exposeInMainWorld('tv', {
   suLoghiNuovi: ascolta('loghi-nuovi'),
   suAvviso: ascolta('avviso'),
   suAppAperta: ascolta('app-aperta'),
+  programmi: () => ipcRenderer.invoke('programmi'),
+  apriProgramma: (id) => ipcRenderer.invoke('apri-programma', id),
+  suProgrammiIcone: ascolta('programmi-icone'),
+  bluetooth: (azione, id) => ipcRenderer.invoke('bluetooth', azione, id),
+  impostazioniBluetoothWindows: () => ipcRenderer.invoke('impostazioni-bluetooth-windows'),
 });

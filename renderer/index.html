@@ -12,6 +12,13 @@
   <main id="home">
     <header class="barra">
       <div class="marchio" id="marchio">Salotto</div>
+      <nav class="schede" id="schede" aria-label="Schermate">
+        <button class="f tab attiva" data-schermata="home">Home</button>
+        <button class="f tab" data-schermata="film">Film</button>
+        <button class="f tab" data-schermata="serie">Serie TV</button>
+        <button class="f tab" data-schermata="app">App</button>
+        <button class="f tab" data-schermata="programmi">Programmi</button>
+      </nav>
       <div class="stati">
         <span class="chip" id="chip-telefono" hidden>Telefono collegato</span>
         <span class="chip" id="chip-dlna" hidden>Ricevitore attivo</span>
@@ -19,6 +26,7 @@
       <div class="ora" id="ora">--:--</div>
     </header>
 
+    <div class="schermata" data-schermata="home">
     <section class="eroe">
       <p class="saluto" id="saluto">Ciao</p>
       <p class="data" id="data"></p>
@@ -40,6 +48,21 @@
         <button class="f tessera strumento" data-azione="energia"><svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.3 7.3a8 8 0 1 0 11.4 0"/></svg><span>Spegni</span><small>Sospendi, riavvia, esci</small></button>
       </div>
     </section>
+    </div>
+
+    <div class="schermata catalogo" data-schermata="film" hidden><div class="contenuto-catalogo" id="cat-movie"></div></div>
+    <div class="schermata catalogo" data-schermata="serie" hidden><div class="contenuto-catalogo" id="cat-tv"></div></div>
+
+    <div class="schermata" data-schermata="app" hidden>
+      <h2 class="titolo-schermata">Tutte le app</h2>
+      <div class="griglia" id="griglia-app"></div>
+    </div>
+
+    <div class="schermata" data-schermata="programmi" hidden>
+      <h2 class="titolo-schermata">Programmi del PC</h2>
+      <p class="sotto-schermata" id="sotto-programmi">Quelli del menu Start di Windows. OK per aprirli.</p>
+      <div class="griglia" id="griglia-programmi"></div>
+    </div>
   </main>
 
   <div id="pannello" class="pannello" hidden>
@@ -71,6 +94,7 @@
   <script src="catalogo.js"></script>
   <script src="loghi/indice.js"></script>
   <script src="app.js"></script>
+  <script src="film.js"></script>
   <script src="impostazioni.js"></script>
 </body>
 </html>

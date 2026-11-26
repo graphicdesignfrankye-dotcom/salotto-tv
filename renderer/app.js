@@ -26,6 +26,44 @@ const api = window.tv || (() => {
     suTelecomando: nulla, suHome: nulla, suLettore: nulla, suTelefoni: nulla, suStatoDLNA: nulla,
     statoAirPlay: async () => ({ attivo: dati.airplay, installato: false, windows: false }), apriSitoAirPlay: async () => {},
     loghi: async () => ({}), suLoghiNuovi: nulla, suAvviso: nulla, suAppAperta: nulla,
+    programmi: async () => ['Kodi', 'VLC media player', 'Steam', 'Spotify', 'Calcolatrice', 'Paint', 'Blocco note', 'Microsoft Edge', 'Esplora file', 'Xbox']
+      .map((nome, i) => ({ id: 'p' + i, nome, icona: '' })),
+    apriProgramma: async () => ({ ok: true }), suProgrammiIcone: nulla,
+    bluetooth: async (azione, id) => {
+      await new Promise((r) => setTimeout(r, azione === 'cerca' ? 1200 : 300));
+      const bt = (window.__btFinto = window.__btFinto || { acceso: true, abbinati: [
+        { id: 'a1', nome: 'Controller Xbox', abbinato: true, connesso: true, categoria: 'Input.Gamepad' },
+        { id: 'a2', nome: 'Cuffie WH-1000XM5', abbinato: true, connesso: false, categoria: 'Audio.Headphones' }],
+        vicini: [{ id: 'v1', nome: 'Soundbar JBL', abbinato: false, connesso: false, categoria: 'Audio.Speaker' },
+          { id: 'v2', nome: 'Tastiera K380', abbinato: false, connesso: false, categoria: 'Input.Keyboard' }] });
+      if (azione === 'radio') return { ok: true, presente: true, acceso: bt.acceso };
+      if (azione === 'abbinati') { await new Promise((r) => setTimeout(r, 1500)); return { ok: true, dispositivi: bt.abbinati }; }
+      if (azione === 'accendi' || azione === 'spegni') { bt.acceso = azione === 'accendi'; return { ok: true, esito: 'Allowed', messaggio: 'Fatto' }; }
+      if (azione === 'cerca') return { ok: true, dispositivi: bt.vicini };
+      if (azione === 'abbina') { const d = bt.vicini.find((x) => x.id === id); if (d && /Tastiera/.test(d.nome)) return { ok: true, esito: 'RequiredHandlerNotRegistered', messaggio: 'Questo dispositivo chiede un PIN: abbinalo dalle impostazioni di Windows' };
+        bt.vicini = bt.vicini.filter((x) => x !== d); bt.abbinati.push({ ...d, abbinato: true }); return { ok: true, esito: 'Paired', messaggio: 'Abbinato' }; }
+      if (azione === 'dimentica') { bt.abbinati = bt.abbinati.filter((x) => x.id !== id); return { ok: true, esito: 'Unpaired', messaggio: 'Dimenticato' }; }
+      return { ok: false, errore: 'azione' };
+    },
+    impostazioniBluetoothWindows: async () => false,
+    // Film e serie finti (locandine disegnate): il catalogo vero arriva da TMDB solo nell'app.
+    tmdbChiave: async (k) => { await new Promise((r) => setTimeout(r, 500)); if (k && String(k).trim().length < 20) return { ok: false, errore: 'Non sembra una chiave TMDB: controlla di averla copiata tutta' }; dati.tmdbAttivo = Boolean(k); return { ok: true }; },
+    tmdbSchermata: async (tipo) => {
+      await new Promise((r) => setTimeout(r, 700));
+      if (!dati.tmdbAttivo) return { ok: false, manca: true };
+      const colori = ['#7a2e2e', '#2e4f7a', '#2e7a5a', '#6a2e7a', '#7a5a2e', '#2e6f7a', '#4a4a6a'];
+      const img = (t, i, w, h) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${colori[i % 7]}"/><stop offset="1" stop-color="#111"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><text x="50%" y="${w > h ? 62 : 80}%" fill="#fff" font-family="sans-serif" font-size="${w > h ? 64 : 34}" font-weight="700" text-anchor="middle">${t}</text></svg>`);
+      const voce = (i) => ({ id: i + 1, tipo, titolo: (tipo === 'movie' ? 'Film ' : 'Serie ') + (i + 1), anno: String(2026 - (i % 6)), trama: 'Una trama di esempio per vedere come appare il testo nel carosello e nella scheda del titolo, lunga un paio di righe.', voto: 6 + (i % 4) / 2, poster: img(String(i + 1), i, 342, 513), sfondo: img((tipo === 'movie' ? 'Film ' : 'Serie ') + (i + 1), i, 1280, 720) });
+      const file = ['Di tendenza questa settimana', 'Su Netflix', 'Su Prime Video', 'Su Disney+', tipo === 'movie' ? 'Al cinema' : 'In onda ora', 'I più votati', 'Commedie', 'Animazione']
+        .map((titolo, f) => ({ titolo, voci: Array.from({ length: 14 }, (_, i) => voce(f * 14 + i)) }));
+      return { ok: true, eroe: file[0].voci.slice(0, 6), file };
+    },
+    tmdbDettagli: async (tipo, id) => {
+      await new Promise((r) => setTimeout(r, 500));
+      const v = (await api.tmdbSchermata(tipo)).file.flatMap((f) => f.voci).find((x) => x.id === id);
+      return { ok: true, ...v, generi: ['Commedia', 'Dramma'], durata: tipo === 'movie' ? '1 h 52 min' : '', stagioni: tipo === 'tv' ? '3 stagioni' : '',
+        dove: [{ nome: 'Netflix', logo: '', app: 'netflix' }, { nome: 'Amazon Prime Video', logo: '', app: 'prime' }, { nome: 'NOW', logo: '', app: 'now' }], noleggio: [], trailer: 'abcdefghijk' };
+    },
   };
 })();
 
@@ -75,6 +113,7 @@ function metti(el) {
   corrente = el;
   el.classList.add('fuoco');
   el.focus({ preventScroll: true });
+  if (el.classList.contains('tab')) mostraSchermata(el.dataset.schermata);
   // Nelle file orizzontali la tessera scelta resta sempre intera, con un po' di margine (anche ingrandita).
   const fila = el.closest('.fila');
   if (fila) {
@@ -84,6 +123,8 @@ function metti(el) {
     if (sx - margine < x) x = sx - margine;
     else if (dx + margine > x + fila.clientWidth) x = dx + margine - fila.clientWidth;
     fila.scrollTo({ left: Math.max(0, x), behavior: 'smooth' });
+    const riga = el.closest('.catalogo .riga');
+    if (riga) riga.scrollIntoView({ block: 'center', behavior: 'smooth' });
   } else el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 function sposta(dir) {
@@ -114,7 +155,7 @@ function sposta(dir) {
 // ---------- loghi ----------
 // Prima quelli già dentro Salotto (loghi/indice.js), poi quelli scaricati dal sito dell'app.
 let loghiScaricati = {};
-const logoDi = (a) => (window.LOGHI || {})[a.id] || loghiScaricati[a.id] || null;
+const logoDi = (a) => a.logo || (window.LOGHI || {})[a.id] || loghiScaricati[a.id] || null;
 const imgLogo = (a, classe = 'logo-app') => { const src = logoDi(a); return src ? `<img class="${classe}" src="${escHtml(src)}" alt="" draggable="false">` : ''; };
 async function caricaLoghi() {
   const mancano = imp.app.filter((a) => !(window.LOGHI || {})[a.id]).map((a) => a.id);
@@ -134,8 +175,63 @@ function disegnaApp() {
       <span class="modo">${a.modo === 'edge' || a.modo === 'interna' ? '' : MODI[a.modo]?.[0] || ''}</span>
     </button>`).join('') || '<p class="sotto">Nessuna app: aggiungine qualcuna dallo Store.</p>';
   // Ridisegnando, il riquadro col fuoco non deve perderlo.
-  if (idFuoco) { const t = fila.querySelector(`[data-app="${CSS.escape(idFuoco)}"]`); if (t) metti(t); }
+  if (idFuoco && schermata === 'home') { const t = fila.querySelector(`[data-app="${CSS.escape(idFuoco)}"]`); if (t) metti(t); }
+  if (schermata === 'app') disegnaGrigliaApp();
   caricaLoghi();
+}
+
+// ---------- schermate (schede in alto, come sulle TV) ----------
+let schermata = 'home';
+function mostraSchermata(nome) {
+  if (!nome || nome === schermata) return;
+  schermata = nome;
+  $$('#home .schermata').forEach((s) => { s.hidden = s.dataset.schermata !== nome; });
+  $$('#schede .tab').forEach((t) => t.classList.toggle('attiva', t.dataset.schermata === nome));
+  if (nome === 'app') disegnaGrigliaApp();
+  if (nome === 'programmi') caricaProgrammi();
+  if (nome === 'film' || nome === 'serie') mostraCatalogo(nome === 'film' ? 'movie' : 'tv');
+}
+const tessereApp = (lista) => lista.map((a) => `
+  <button class="f tessera app ${logoDi(a) ? 'con-logo' : ''}" data-app="${escHtml(a.id)}" style="--colore:${escHtml(a.colore)}">
+    ${imgLogo(a)}
+    <span class="nome">${escHtml(a.nome)}</span>
+    <span class="modo">${a.modo === 'edge' || a.modo === 'interna' ? '' : MODI[a.modo]?.[0] || ''}</span>
+  </button>`).join('');
+function disegnaGrigliaApp() {
+  const g = $('#griglia-app');
+  const idFuoco = corrente && g.contains(corrente) ? corrente.dataset.app : null;
+  g.innerHTML = tessereApp(imp.app) + `
+    <button class="f tessera strumento" data-azione="store"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Aggiungi app</span><small>Dallo Store</small></button>`;
+  if (idFuoco) { const t = g.querySelector(`[data-app="${CSS.escape(idFuoco)}"]`); if (t) metti(t); }
+}
+
+let programmi = null; // programmi del PC (dal menu Start), caricati la prima volta che si apre la scheda
+async function caricaProgrammi(forza = false) {
+  if (programmi && !forza) { disegnaProgrammi(); return; }
+  $('#sotto-programmi').textContent = 'Cerco i programmi installati…';
+  programmi = await api.programmi();
+  disegnaProgrammi();
+}
+function disegnaProgrammi() {
+  const g = $('#griglia-programmi');
+  const idFuoco = corrente && g.contains(corrente) ? corrente.dataset.programma : null;
+  $('#sotto-programmi').textContent = programmi.length
+    ? `${programmi.length} programmi dal menu Start di Windows. OK per aprirli.`
+    : (imp.piattaforma === 'win32' ? 'Nessun programma trovato nel menu Start.' : 'I programmi del PC si vedono solo su Windows.');
+  g.innerHTML = programmi.map((p) => `
+    <button class="f tessera programma" data-programma="${escHtml(p.id)}" title="${escHtml(p.nome)}">
+      ${p.icona ? `<img class="icona-programma" src="${escHtml(p.icona)}" alt="" draggable="false">` : `<span class="icona-programma iniziale">${escHtml(p.nome.slice(0, 1))}</span>`}
+      <span class="nome">${escHtml(p.nome)}</span>
+    </button>`).join('');
+  if (idFuoco) { const t = g.querySelector(`[data-programma="${CSS.escape(idFuoco)}"]`); if (t) metti(t); }
+}
+async function apriProgramma(id) {
+  const p = (programmi || []).find((x) => x.id === id);
+  if (!p) return;
+  mostraApertura({ id: 'prog-' + id, nome: p.nome, colore: '#262b38', logo: p.icona }, $(`[data-programma="${CSS.escape(id)}"]`));
+  const r = await api.apriProgramma(id);
+  setTimeout(nascondiApertura, 2500);
+  if (!r.ok) { nascondiApertura(); avviso(r.errore || 'Non riesco ad aprire il programma'); }
 }
 
 // ---------- apertura di un'app: animazione stile TV ----------
@@ -179,9 +275,17 @@ async function apri(id) {
 function tastoLeggibile() { return (imp.tastoHome || '').replace('Control', 'Ctrl').replace(/\+/g, ' + '); }
 
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-app], [data-azione]');
+  const t = e.target.closest('[data-app], [data-azione], [data-programma], .tab');
   if (!t || !$('#home').contains(t)) return;
-  if (t.dataset.app) apri(t.dataset.app);
+  if (t.classList.contains('tab')) {
+    // OK su una scheda: si scende al primo riquadro della schermata
+    mostraSchermata(t.dataset.schermata);
+    const primo = $(`#home .schermata[data-schermata="${t.dataset.schermata}"] .f`);
+    if (primo) metti(primo);
+    return;
+  }
+  if (t.dataset.programma) apriProgramma(t.dataset.programma);
+  else if (t.dataset.app) apri(t.dataset.app);
   else azioni[t.dataset.azione]?.();
 });
 
@@ -193,6 +297,7 @@ function apriPannello(html, dopo) {
   indietroPannello = null;
   $('#scheda').innerHTML = html;
   $('#scheda').className = 'scheda';
+  $('#scheda').onclick = null; // i gestori dei clic restano della pagina che li ha messi
   $('#pannello').className = 'pannello';
   $('#pannello').hidden = false;
   if (dopo) dopo($('#scheda'));
@@ -205,7 +310,8 @@ function chiudiPannello() {
   indietroPannello = null;
   $('#pannello').hidden = true;
   $('#scheda').innerHTML = '';
-  if (fuocoPrima && document.contains(fuocoPrima)) metti(fuocoPrima); else metti(focalizzabili()[0]);
+  // Se il riquadro di prima non c'è più (schermata ridisegnata), si torna alla scheda della schermata attuale.
+  if (fuocoPrima && document.contains(fuocoPrima)) metti(fuocoPrima); else metti($(`#schede .tab[data-schermata="${schermata}"]`) || focalizzabili()[0]);
 }
 
 const azioni = {
@@ -533,6 +639,7 @@ function comando(cmd) {
   const att = attuale_();
   const campo = att && att.tagName === 'INPUT';
   if (['up', 'down', 'left', 'right'].includes(cmd)) {
+    if (frecciaEroe(att, cmd)) return;
     if (campo && (cmd === 'left' || cmd === 'right')) {
       const fine = cmd === 'left' ? att.selectionStart === 0 : att.selectionEnd === att.value.length;
       if (!fine) { const p = Math.max(0, (att.selectionStart || 0) + (cmd === 'left' ? -1 : 1)); att.setSelectionRange(p, p); return; }
@@ -545,6 +652,12 @@ function comando(cmd) {
   } else if (cmd === 'back') {
     if (indietroPannello) indietroPannello();
     else if (!$('#pannello').hidden) chiudiPannello();
+    else {
+      // fuori dai pannelli: prima si torna alla scheda della schermata, poi alla Home
+      const tab = $(`#schede .tab[data-schermata="${schermata}"]`);
+      if (corrente !== tab) metti(tab);
+      else if (schermata !== 'home') metti($('#schede .tab[data-schermata="home"]'));
+    }
   } else if (cmd === 'cancella' && campo) {
     const s = att.selectionStart, e = att.selectionEnd;
     if (s !== e) att.setRangeText('', s, e, 'end'); else if (s > 0) att.setRangeText('', s - 1, s, 'end');
@@ -584,6 +697,7 @@ api.suStatoDLNA((s) => { statoDlna = s; aggiornaChip(); });
 api.suLoghiNuovi(() => caricaLoghi());
 api.suAvviso((t) => avviso(String(t || ''), 9000));
 api.suAppAperta(() => nascondiApertura());
+api.suProgrammiIcone(() => { if (programmi) caricaProgrammi(true); });
 
 // ---------- avvio ----------
 (async () => {

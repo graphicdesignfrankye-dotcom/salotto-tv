@@ -38,6 +38,7 @@ function predefinite() {
     airplay: true,
     edgeDentro: true, // le app che si aprono in Edge stanno dentro la finestra di Salotto
     nomeRicevitore: 'Salotto (PC)',
+    tmdbChiave: '', // chiave di themoviedb.org per le schermate Film e Serie TV (resta solo su questo PC)
     uuid: crypto.randomUUID(),
   };
 }
@@ -60,10 +61,10 @@ class Impostazioni {
     fs.writeFileSync(tmp, JSON.stringify(this.dati, null, 2));
     fs.renameSync(tmp, this.file);
   }
-  // Solo ciò che serve all'interfaccia (niente token dei telefoni).
+  // Solo ciò che serve all'interfaccia (niente token dei telefoni, niente chiave TMDB).
   pubbliche() {
-    const { tokenTelefoni, ...resto } = this.dati;
-    return { ...resto, telefoniAbbinati: tokenTelefoni.length };
+    const { tokenTelefoni, tmdbChiave, ...resto } = this.dati;
+    return { ...resto, telefoniAbbinati: tokenTelefoni.length, tmdbAttivo: Boolean(tmdbChiave) };
   }
 }
 

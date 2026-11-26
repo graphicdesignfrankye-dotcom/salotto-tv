@@ -13,6 +13,9 @@ const { RicevitoreDLNA } = require('./dlna.cjs');
 const { AirPlay } = require('./airplay.cjs');
 const { Loghi } = require('./loghi.cjs');
 const { CanaleEdge } = require('./cdp.cjs');
+const { Programmi } = require('./programmi.cjs');
+const { Bluetooth } = require('./bluetooth.cjs');
+const { Tmdb, RICERCA } = require('./tmdb.cjs');
 
 const WINDOWS = process.platform === 'win32';
 const IN_FINESTRA = process.argv.includes('--finestra');
@@ -29,7 +32,10 @@ let airplay, loghi, sorveglianza = null, airplayInDisparte = false;
 let videoAirPlay = null; // handle della finestra del video AirPlay incastrata in Salotto
 let finestraEdge = null;  // handle della finestra di Edge incastrata in Salotto
 let giroEdge = 0, controlloEdge = null;
-let canaleEdge = null;    // canale di controllo con Edge (tasti direttamente alla pagina)
+let canaleEdge = null;
+let programmi = null;
+let tmdb = null;          // catalogo di film e serie (themoviedb.org)
+let bluetooth = null;     // Bluetooth del PC (solo Windows)     // programmi del PC (menu Start) per la schermata "Programmi"    // canale di controllo con Edge (tasti direttamente alla pagina)
 let fileLog;
 
 function log(msg) {
@@ -163,9 +169,15 @@ function apriInterna(a) {
   attivo = 'interna';
 }
 
-async function apriApp(id) {
-  const a = imp.get('app').find((x) => x.id === id);
-  if (!a) return { ok: false, errore: 'App non trovata' };
+// extra (dalle schede di film e serie): { cerca: 'titolo' } apre l'app già sulla ricerca, { trailer: 'idYouTube' } apre il trailer.
+async function apriApp(id, extra) {
+  const salvata = imp.get('app').find((x) => x.id === id);
+  if (!salvata) return { ok: false, errore: 'App non trovata' };
+  const a = { ...salvata };
+  if (extra && typeof extra === 'object') {
+    if (id === 'youtube' && typeof extra.trailer === 'string' && /^[\w-]{6,20}$/.test(extra.trailer)) a.url = 'https://www.youtube.com/tv#/watch?v=' + extra.trailer;
+    else if (typeof extra.cerca === 'string' && extra.cerca.trim() && RICERCA[id]) a.url = RICERCA[id](extra.cerca.trim().slice(0, 120));
+  }
   log(`apro ${a.nome} (${a.modo})`);
   invia('player', 'stop');
   try {
@@ -487,10 +499,53 @@ function registraIPC() {
     if (chiave === 'tastoHome') registraTastoHome();
     return true;
   });
-  ipcMain.handle('apri', (_e, id) => apriApp(id));
+  ipcMain.handle('apri', (_e, id, extra) => apriApp(id, extra));
+  // Film e Serie TV (TMDB)
+  const tipoValido = (t) => t === 'movie' || t === 'tv';
+  ipcMain.handle('tmdb-schermata', async (_e, tipo) => {
+    if (!tipoValido(tipo)) return { ok: false, errore: 'tipo non valido' };
+    if (!tmdb.attivo()) return { ok: false, manca: true };
+    try { return { ok: true, ...(await tmdb.schermata(tipo, imp.get('app').map((a) => a.id))) }; } catch (e) { log('tmdb: ' + e.message); return { ok: false, errore: e.message }; }
+  });
+  ipcMain.handle('tmdb-dettagli', async (_e, tipo, id) => {
+    if (!tipoValido(tipo) || !Number.isInteger(id) || id <= 0) return { ok: false, errore: 'titolo non valido' };
+    try { return { ok: true, ...(await tmdb.dettagli(tipo, id)) }; } catch (e) { log('tmdb: ' + e.message); return { ok: false, errore: e.message }; }
+  });
+  ipcMain.handle('tmdb-chiave', async (_e, chiave) => {
+    chiave = String(chiave || '').trim();
+    if (!chiave) { imp.set('tmdbChiave', ''); tmdb.dimentica(); log('tmdb: chiave tolta'); return { ok: true }; }
+    if (!/^[\w.-]{20,400}$/.test(chiave)) return { ok: false, errore: 'Non sembra una chiave TMDB: controlla di averla copiata tutta' };
+    const r = await tmdb.prova(chiave);
+    if (!r.ok) return { ok: false, errore: /non valida/.test(r.errore) ? 'TMDB dice che la chiave non è valida' : 'Non riesco a raggiungere TMDB: ' + r.errore };
+    imp.set('tmdbChiave', chiave); tmdb.dimentica(); log('tmdb: chiave salvata');
+    return { ok: true };
+  });
   ipcMain.handle('esiste', (_e, p) => typeof p === 'string' && /\.exe$/i.test(p) && fs.existsSync(p));
   ipcMain.handle('home', () => vaiHome());
   ipcMain.handle('stato-airplay', () => statoAirPlay());
+  // Schermata "Programmi": elenco dal menu Start; le icone mancanti arrivano dopo (evento programmi-icone).
+  ipcMain.handle('programmi', () => {
+    const { lista, mancanti } = programmi.elenco();
+    if (mancanti.length) programmi.icone(mancanti).then((n) => n && invia('programmi-icone'));
+    return lista;
+  });
+  // Bluetooth: solo queste azioni; l'id del dispositivo arriva dall'elenco che Salotto stesso ha mostrato.
+  ipcMain.handle('bluetooth', (_e, azione, id) => {
+    if (!['radio', 'abbinati', 'cerca', 'accendi', 'spegni', 'abbina', 'dimentica'].includes(azione)) return { ok: false, errore: 'azione non valida' };
+    if ((azione === 'abbina' || azione === 'dimentica') && (typeof id !== 'string' || id.length > 300)) return { ok: false, errore: 'dispositivo non valido' };
+    return bluetooth.esegui(azione, id);
+  });
+  ipcMain.handle('impostazioni-bluetooth-windows', () => (WINDOWS ? shell.openExternal('ms-settings:bluetooth') : false));
+  ipcMain.handle('apri-programma', async (_e, id) => {
+    const p = programmi.percorso(id);
+    if (!p) return { ok: false, errore: 'Programma non trovato' };
+    log('apro il programma ' + path.basename(p));
+    chiudiVista();
+    if (attivo === 'edge') await chiudiEdge();
+    attivo = 'launcher';
+    const errore = await shell.openPath(p);
+    return errore ? { ok: false, errore } : { ok: true };
+  });
   ipcMain.handle('apri-sito-airplay', () => shell.openExternal('https://github.com/leapbtw/uxplay-windows/releases/latest'));
   // Loghi scaricati dai siti per le app che non hanno un logo già dentro Salotto.
   ipcMain.handle('loghi', (_e, ids) => {
@@ -542,6 +597,9 @@ app.whenReady().then(async () => {
   tastiera.avvia();
   airplay = new AirPlay(app.getPath('userData'), log);
   loghi = new Loghi(app.getPath('userData'), log);
+  programmi = new Programmi(app.getPath('userData'), log);
+  bluetooth = new Bluetooth(app.getPath('userData'), log);
+  tmdb = new Tmdb(() => imp.get('tmdbChiave'), log);
   telecomando = new Telecomando(imp, (cmd, m) => comando(cmd, m), (n) => invia('telefoni', n));
   registraIPC();
   // Le pagine delle app non possono chiedere permessi strani (webcam, posizione...): solo notifiche e media protetti.

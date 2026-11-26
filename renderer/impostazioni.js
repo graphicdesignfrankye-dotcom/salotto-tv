@@ -10,6 +10,12 @@ const ICONE = {
   sistema: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   energia: '<path d="M12 3v9"/><path d="M6.3 7.3a8 8 0 1 0 11.4 0"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+  tmdb: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4"/>',
+  bluetooth: '<path d="M7 7l10 10-5 4V3l5 4L7 17"/>',
+  cuffie: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
+  controller: '<path d="M7 9h10a4 4 0 0 1 4 4.5l-.6 3.2a2 2 0 0 1-3.4 1L15 16H9l-2 1.7a2 2 0 0 1-3.4-1L3 13.5A4 4 0 0 1 7 9z"/><path d="M8 12v2M7 13h2M16 12.5h.01M17.5 13.5h.01"/>',
+  tastiera: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
+  cassa: '<rect x="6" y="2" width="12" height="20" rx="2"/><circle cx="12" cy="14" r="3.5"/><path d="M12 6h.01"/>',
   indietro: '<path d="M15 5l-7 7 7 7"/>',
 };
 const icona = (n) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONE[n] || ''}</svg>`;
@@ -52,8 +58,10 @@ async function impostazioniTV(pagina, fuoco) {
   const trasm = [imp.dlna ? 'DLNA' : '', imp.airplay && ap.installato ? 'AirPlay' : ''].filter(Boolean).join(' e ') || 'Spenta';
   const voci = [
     ['app', 'App', `${imp.app.length} nella home · ordine e modifica`],
+    ['tmdb', 'Film e Serie TV', imp.tmdbAttivo ? 'Catalogo TMDB collegato' : 'Aggiungi la chiave TMDB'],
     ['trasmissione', 'Trasmissione', `${trasm} · “${escHtml(imp.nomeRicevitore)}”`],
     ['telecomando', 'Telecomando', imp.telefoniAbbinati ? `${imp.telefoniAbbinati} telefoni abbinati` : 'Usa il telefono come telecomando'],
+    ['bluetooth', 'Bluetooth', 'Cuffie, casse, controller e tastiere'],
     ['sistema', 'Sistema', imp.avvioConWindows ? 'Si avvia all\'accensione del PC' : 'Avvio e tasto Home'],
     ['energia', 'Spegni e riavvia', 'Sospendi, riavvia, spegni, esci'],
     ['info', 'Informazioni', `Salotto ${escHtml(imp.versione || '')}`],
@@ -148,6 +156,109 @@ const PAGINE = {
     }, torna('telecomando'));
   },
 
+  async bluetooth(fuoco, messaggio) {
+    // Prima lo stato della radio (veloce), poi la pagina; l'elenco degli abbinati arriva dopo, quando Windows risponde.
+    pannelloLaterale(`${testaPagina('Bluetooth')}<p class="sotto" data-primo>Controllo il Bluetooth…</p>`, null, torna('bluetooth'));
+    const st = await api.bluetooth('radio');
+    if (schedaBluetoothChiusa()) return;
+    const tipoIcona = (c) => (/gamepad|game|controller|dualsense|dualshock|joy-con/i.test(c) ? 'controller' : /keyboard|tastiera|mouse|input/i.test(c) ? 'tastiera' : /headphone|headset|earbud|cuffie|airpods|buds/i.test(c) ? 'cuffie' : /audio|speaker|cassa|soundbar/i.test(c) ? 'cassa' : 'bluetooth');
+    const riga = (d, attr) => `
+      <button class="f imp-voce piccola" ${attr}="${escHtml(d.id)}">
+        <span class="imp-icona">${icona(tipoIcona((d.categoria || '') + ' ' + (d.nome || '')))}</span>
+        <span class="imp-testo"><b>${escHtml(d.nome)}</b><small>${attr === 'data-bt-abbinato' ? (d.connesso ? 'Collegato' : 'Abbinato, non collegato') + ' · OK due volte per dimenticarlo' : 'OK per abbinarlo'}</small></span>
+      </button>`;
+    pannelloLaterale(`
+      ${testaPagina('Bluetooth', messaggio ? escHtml(messaggio) : (st.ok ? '' : escHtml('Non riesco a leggere il Bluetooth: ' + (st.errore || ''))))}
+      ${st.ok && st.presente === false ? '<div class="imp-riga"><b>Nessun Bluetooth</b><span>Questo PC non ha il Bluetooth, oppure è disattivato nel BIOS o in Gestione dispositivi</span></div>' : ''}
+      ${st.ok && st.presente !== false ? interruttore('bt', Boolean(st.acceso), 'Bluetooth', st.acceso ? 'Acceso' : 'Spento', !fuoco) : ''}
+      ${st.acceso ? `<h3>Dispositivi abbinati</h3>
+        <div class="imp-elenco" id="bt-abbinati"><p class="sotto">Cerco i dispositivi abbinati…</p></div>
+        <h3>Nuovi dispositivi</h3>
+        <div class="imp-elenco" id="bt-vicini"><p class="sotto">Metti il dispositivo in modalità abbinamento, poi premi Cerca.</p></div>
+        <button class="f imp-voce piccola" data-p="cerca"><span class="imp-icona">${icona('bluetooth')}</span><span class="imp-testo"><b>Cerca dispositivi</b><small>Fino a 30 secondi</small></span></button>` : ''}
+      <button class="f imp-voce piccola" data-p="windows"><span class="imp-icona">${icona('sistema')}</span><span class="imp-testo"><b>Impostazioni Bluetooth di Windows</b><small>Per i dispositivi che chiedono un PIN</small></span><span class="imp-freccia">›</span></button>`, (s) => {
+      const int = s.querySelector('[data-int="bt"]');
+      if (int) int.onclick = async () => {
+        int.querySelector('small').textContent = 'Un momento…';
+        const r = await api.bluetooth(st.acceso ? 'spegni' : 'accendi');
+        await PAGINE.bluetooth('bt', r.ok ? (r.esito === 'Allowed' ? '' : r.messaggio) : r.errore);
+      };
+      s.querySelector('[data-p="windows"]').onclick = async () => {
+        if (!(await api.impostazioniBluetoothWindows())) avviso('Disponibile solo su Windows');
+      };
+      const cerca = s.querySelector('[data-p="cerca"]');
+      if (cerca) cerca.onclick = async () => {
+        const vic = s.querySelector('#bt-vicini');
+        vic.innerHTML = '<p class="sotto">Cerco… tieni il dispositivo vicino e in modalità abbinamento.</p>';
+        cerca.disabled = true;
+        const r = await api.bluetooth('cerca');
+        cerca.disabled = false;
+        if (!vic.isConnected) return;
+        const lista = (r.dispositivi || []);
+        vic.innerHTML = !r.ok ? `<p class="sotto">${escHtml('Ricerca non riuscita: ' + (r.errore || ''))}</p>`
+          : lista.length ? lista.map((d) => riga(d, 'data-bt-vicino')).join('') : '<p class="sotto">Nessun dispositivo trovato. Controlla che sia in modalità abbinamento e riprova.</p>';
+        const primo = vic.querySelector('.f');
+        if (primo) metti(primo);
+      };
+      s.onclick = async (e) => {
+        const nuovo = e.target.closest('[data-bt-vicino]');
+        const vecchio = e.target.closest('[data-bt-abbinato]');
+        if (nuovo) {
+          nuovo.querySelector('small').textContent = 'Abbino… se il dispositivo chiede conferma, accettala';
+          const r = await api.bluetooth('abbina', nuovo.dataset.btVicino);
+          await PAGINE.bluetooth(null, r.ok ? r.messaggio : r.errore);
+        } else if (vecchio) {
+          if (vecchio.dataset.conferma !== '1') { vecchio.dataset.conferma = '1'; vecchio.querySelector('small').textContent = 'Premi OK di nuovo per dimenticarlo'; return; }
+          vecchio.querySelector('small').textContent = 'Un momento…';
+          const r = await api.bluetooth('dimentica', vecchio.dataset.btAbbinato);
+          await PAGINE.bluetooth(null, r.ok ? r.messaggio : r.errore);
+        }
+      };
+      if (fuoco === 'bt' && int) metti(int);
+      const elenco = s.querySelector('#bt-abbinati');
+      if (elenco) api.bluetooth('abbinati').then((r) => {
+        if (!elenco.isConnected) return; // pagina già cambiata: questa risposta non serve più
+        const lista = r.dispositivi || [];
+        elenco.innerHTML = !r.ok ? `<p class="sotto">${escHtml('Non riesco a leggere i dispositivi: ' + (r.errore || ''))}</p>`
+          : lista.length ? lista.map((d) => riga(d, 'data-bt-abbinato')).join('') : '<p class="sotto">Nessun dispositivo abbinato.</p>';
+      });
+    }, torna('bluetooth'));
+  },
+
+  async tmdb(fuoco, messaggio) {
+    pannelloLaterale(`
+      ${testaPagina('Film e Serie TV', messaggio ? escHtml(messaggio) : '')}
+      <div class="imp-riga"><b>Catalogo TMDB</b><span>${imp.tmdbAttivo ? 'Collegato: le schede Film e Serie TV sono pronte' : 'Nessuna chiave: le schede Film e Serie TV sono vuote'}</span></div>
+      <div class="campo imp-campo"><label for="tmdb-chiave">${imp.tmdbAttivo ? 'Nuova chiave API (per cambiarla)' : 'Chiave API di TMDB'}</label>
+        <input class="f" id="tmdb-chiave" data-primo autocomplete="off" spellcheck="false" placeholder="Incollala qui, anche dalla tastiera del telefono"></div>
+      <div class="imp-elenco">
+        <button class="f imp-voce piccola" data-p="salva"><span class="imp-icona">${icona('tmdb')}</span><span class="imp-testo"><b>Salva e prova</b><small>Salotto controlla subito che funzioni</small></span></button>
+        ${imp.tmdbAttivo ? `<button class="f imp-voce piccola" data-p="togli"><span class="imp-testo"><b>Togli la chiave</b><small>Le schede Film e Serie TV tornano vuote</small></span></button>` : ''}
+      </div>
+      <p class="sotto">La trovi su themoviedb.org → Impostazioni → API, alla voce “Chiave API”. Va bene anche il “Token di accesso in lettura”. Resta salvata solo su questo PC.</p>
+      <p class="sotto">Questo prodotto usa le API di TMDB ma non è approvato né certificato da TMDB.</p>`, (s) => {
+      const campo = s.querySelector('#tmdb-chiave');
+      s.querySelector('[data-p="salva"]').onclick = async (e) => {
+        const b = e.currentTarget;
+        if (!campo.value.trim()) { avviso('Prima incolla la chiave nel campo'); metti(campo); return; }
+        b.querySelector('small').textContent = 'Provo la chiave…';
+        const r = await api.tmdbChiave(campo.value);
+        if (!r.ok) { b.querySelector('small').textContent = r.errore; return; }
+        imp = await api.impostazioni();
+        catalogoDaRifare();
+        await PAGINE.tmdb(null, 'Chiave salvata: apri le schede Film o Serie TV');
+      };
+      const togli = s.querySelector('[data-p="togli"]');
+      if (togli) togli.onclick = async () => {
+        if (togli.dataset.conferma !== '1') { togli.dataset.conferma = '1'; togli.querySelector('small').textContent = 'Premi OK di nuovo per toglierla'; return; }
+        await api.tmdbChiave('');
+        imp = await api.impostazioni();
+        catalogoDaRifare();
+        await PAGINE.tmdb(null, 'Chiave tolta');
+      };
+    }, torna('tmdb'));
+  },
+
   async sistema() {
     pannelloLaterale(`
       ${testaPagina('Sistema')}
@@ -193,5 +304,11 @@ const PAGINE = {
     }, torna('info'));
   },
 };
+
+// Se nel frattempo si è usciti dalla pagina Bluetooth, le risposte lente di Windows non la riaprono.
+function schedaBluetoothChiusa() {
+  const h = $('#scheda h1');
+  return $('#pannello').hidden || !h || h.textContent !== 'Bluetooth';
+}
 
 azioni.impostazioni = () => impostazioniTV();

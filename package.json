@@ -1,7 +1,7 @@
 {
   "name": "salotto-tv",
   "productName": "Salotto",
-  "version": "0.1.19",
+  "version": "0.1.22",
   "private": true,
   "description": "Trasforma il PC Windows in una TV: launcher a schermo intero, telecomando dal telefono, ricevitore DLNA",
   "main": "electron/main.cjs",

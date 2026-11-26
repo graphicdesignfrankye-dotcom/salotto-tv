@@ -5,9 +5,11 @@ App per Windows che trasforma il PC in una TV: home a riquadri a schermo intero,
 - **App:** Netflix, Prime Video, Disney+, RaiPlay e altre si aprono in Microsoft Edge **dentro** la finestra di Salotto (video protetti); YouTube nella versione per TV. Le frecce funzionano anche sui siti, caroselli compresi.
 - **Store:** circa 40 servizi da aggiungere alla home con un tasto, più app e programmi a mano.
 - **Trasmetti al PC:** ricevitore **DLNA** (app Android come Web Video Caster o BubbleUPnP) e **AirPlay** da iPhone, iPad e Mac tramite [uxplay-windows](https://github.com/leapbtw/uxplay-windows), da installare a parte.
-- **Impostazioni** in stile TV, avvio all'accensione del PC, tasto `Ctrl+Alt+H` per tornare alla home.
+- **Film e Serie TV** in stile Google TV: carosello, file di locandine (di tendenza, per servizio, per genere) e scheda del titolo con "Guarda su …" e trailer. Usano il catalogo di [TMDB](https://www.themoviedb.org): serve una chiave API personale gratuita, da incollare in Impostazioni → Film e Serie TV (resta solo sul PC).
+- **Programmi** del PC presi dal menu Start, con le loro icone.
+- **Impostazioni** in stile TV, anche **Bluetooth** (accendi/spegni, abbinati, cerca, abbina, dimentica), avvio all'accensione del PC, tasto `Ctrl+Alt+H` per tornare alla home.
 
-> **Stato:** versione 0.1.19, provata su Windows 11. L'installer non è firmato: al primo avvio Windows (SmartScreen) può mostrare un avviso, si va avanti con "Ulteriori informazioni" → "Esegui comunque".
+> **Stato:** versione 0.1.22, provata su Windows 11. L'installer non è firmato: al primo avvio Windows (SmartScreen) può mostrare un avviso, si va avanti con "Ulteriori informazioni" → "Esegui comunque".
 
 ## Installazione
 
@@ -26,4 +28,4 @@ Fatta con Electron. Su Mac parte per sviluppare l'interfaccia; le funzioni di Wi
 
 ## Licenza e marchi
 
-Codice sotto licenza MIT (vedi [LICENSE](LICENSE)). I loghi in `renderer/loghi/` sono dei rispettivi proprietari (presi dai loro siti ufficiali; alcuni disegnati da Simple Icons, CC0) e servono solo a riconoscere i servizi: la licenza MIT non li copre. Salotto non è collegato a Google, Netflix, Rai né agli altri servizi citati.
+Codice sotto licenza MIT (vedi [LICENSE](LICENSE)). I loghi in `renderer/loghi/` sono dei rispettivi proprietari (presi dai loro siti ufficiali; alcuni disegnati da Simple Icons, CC0) e servono solo a riconoscere i servizi: la licenza MIT non li copre. Salotto non è collegato a Google, Netflix, Rai né agli altri servizi citati. Questo prodotto usa le API di TMDB ma non è approvato né certificato da TMDB.
