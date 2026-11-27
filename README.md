@@ -6,10 +6,11 @@ App per Windows che trasforma il PC in una TV: home a riquadri a schermo intero,
 - **Store:** circa 40 servizi da aggiungere alla home con un tasto, più app e programmi a mano.
 - **Trasmetti al PC:** ricevitore **DLNA** (app Android come Web Video Caster o BubbleUPnP) e **AirPlay** da iPhone, iPad e Mac tramite [uxplay-windows](https://github.com/leapbtw/uxplay-windows), da installare a parte.
 - **Film e Serie TV** in stile Google TV: carosello, file di locandine (di tendenza, per servizio, per genere) e scheda del titolo con "Guarda su …" e trailer. Usano il catalogo di [TMDB](https://www.themoviedb.org): serve una chiave API personale gratuita, da incollare in Impostazioni → Film e Serie TV (resta solo sul PC).
+- **Home "Per te"** come su Google TV: carosello di film e serie di tendenza, le tue app, file di titoli per tendenza e per servizio. Cosa vedere si sceglie in Impostazioni → Home.
 - **Programmi** del PC presi dal menu Start, con le loro icone.
 - **Impostazioni** in stile TV, anche **Bluetooth** (accendi/spegni, abbinati, cerca, abbina, dimentica), avvio all'accensione del PC, tasto `Ctrl+Alt+H` per tornare alla home.
 
-> **Stato:** versione 0.1.22, provata su Windows 11. L'installer non è firmato: al primo avvio Windows (SmartScreen) può mostrare un avviso, si va avanti con "Ulteriori informazioni" → "Esegui comunque".
+> **Stato:** versione 0.1.24, provata su Windows 11. L'installer non è firmato: al primo avvio Windows (SmartScreen) può mostrare un avviso, si va avanti con "Ulteriori informazioni" → "Esegui comunque".
 
 ## Installazione
 

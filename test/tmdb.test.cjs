@@ -86,3 +86,22 @@ test('ricerca dentro le app', () => {
   assert.equal(RICERCA.netflix('Il padrino'), 'https://www.netflix.com/search?q=Il%20padrino');
   assert.equal(RICERCA.prime('A&B'), 'https://www.primevideo.com/search?phrase=A%26B');
 });
+
+test('home: carosello misto, tendenze e fila per i servizi che si hanno (film e serie alternati)', async () => {
+  const base = finto([]);
+  global.fetch = async (url, opz) => {
+    const u = new URL(url);
+    const p = u.pathname.replace('/3/', '');
+    if (p === 'trending/all/week') return { ok: true, status: 200, json: async () => ({ results: [titolo(1, { media_type: 'movie' }), { ...titolo(2), title: undefined, name: 'Serie 2', media_type: 'tv' }, titolo(3, { media_type: 'person' })] }) };
+    if (p === 'watch/providers/tv') return { ok: true, status: 200, json: async () => ({ results: [{ provider_id: 8, provider_name: 'Netflix' }] }) };
+    if (p === 'discover/tv') return { ok: true, status: 200, json: async () => ({ results: Array.from({ length: 5 }, (_, i) => titolo(900 + i)) }) };
+    return base(url, opz);
+  };
+  const t = new Tmdb(() => 'chiave-di-prova-123456789');
+  const r = await t.home(['netflix']);
+  assert.deepEqual(r.eroe.map((v) => v.tipo + v.id), ['movie1', 'tv2']);
+  assert.deepEqual(r.file.map((f) => f.titolo), ['Film di tendenza', 'Serie TV di tendenza', 'Su Netflix']);
+  const netflix = r.file[2].voci;
+  assert.deepEqual(netflix.slice(0, 4).map((v) => v.tipo), ['movie', 'tv', 'movie', 'tv']);
+  assert.equal(r.file[2].app, 'netflix');
+});

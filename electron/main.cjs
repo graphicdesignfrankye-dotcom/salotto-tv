@@ -459,7 +459,7 @@ function registraTastoHome() {
 }
 
 // ---------- IPC dall'interfaccia ----------
-const CHIAVI_MODIFICABILI = new Set(['nome', 'app', 'avvioConWindows', 'dlna', 'airplay', 'edgeDentro', 'nomeRicevitore', 'tastoHome']);
+const CHIAVI_MODIFICABILI = new Set(['nome', 'app', 'avvioConWindows', 'dlna', 'airplay', 'edgeDentro', 'nomeRicevitore', 'tastoHome', 'home']);
 
 function appValida(a) {
   if (!a || typeof a !== 'object') return null;
@@ -491,6 +491,10 @@ function registraIPC() {
       for (const a of valore) { const v = imp.get('app').find((x) => x.id === a.id); if (v && (v.url !== a.url || v.sito !== a.sito)) loghi.dimentica(a.id); }
     }
     if (chiave === 'nome' || chiave === 'nomeRicevitore') valore = String(valore || '').trim().slice(0, 40) || imp.get(chiave);
+    if (chiave === 'home') {
+      if (!valore || typeof valore !== 'object') return false;
+      valore = Object.fromEntries(['carosello', 'film', 'serie', 'servizi', 'salotto'].map((k) => [k, valore[k] !== false]));
+    }
     if (chiave === 'avvioConWindows' || chiave === 'dlna' || chiave === 'airplay' || chiave === 'edgeDentro') valore = Boolean(valore);
     imp.set(chiave, valore);
     if (chiave === 'avvioConWindows') app.setLoginItemSettings({ openAtLogin: valore });
@@ -506,6 +510,10 @@ function registraIPC() {
     if (!tipoValido(tipo)) return { ok: false, errore: 'tipo non valido' };
     if (!tmdb.attivo()) return { ok: false, manca: true };
     try { return { ok: true, ...(await tmdb.schermata(tipo, imp.get('app').map((a) => a.id))) }; } catch (e) { log('tmdb: ' + e.message); return { ok: false, errore: e.message }; }
+  });
+  ipcMain.handle('tmdb-home', async () => {
+    if (!tmdb.attivo()) return { ok: false, manca: true };
+    try { return { ok: true, ...(await tmdb.home(imp.get('app').map((a) => a.id))) }; } catch (e) { log('tmdb: ' + e.message); return { ok: false, errore: e.message }; }
   });
   ipcMain.handle('tmdb-dettagli', async (_e, tipo, id) => {
     if (!tipoValido(tipo) || !Number.isInteger(id) || id <= 0) return { ok: false, errore: 'titolo non valido' };

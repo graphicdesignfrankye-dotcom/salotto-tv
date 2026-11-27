@@ -38,6 +38,8 @@ function predefinite() {
     airplay: true,
     edgeDentro: true, // le app che si aprono in Edge stanno dentro la finestra di Salotto
     nomeRicevitore: 'Salotto (PC)',
+    // Cosa si vede nella home (le app si vedono sempre).
+    home: { carosello: true, film: true, serie: true, servizi: true, salotto: true },
     tmdbChiave: '', // chiave di themoviedb.org per le schermate Film e Serie TV (resta solo su questo PC)
     uuid: crypto.randomUUID(),
   };

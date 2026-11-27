@@ -24,10 +24,12 @@
         <span class="chip" id="chip-dlna" hidden>Ricevitore attivo</span>
       </div>
       <div class="ora" id="ora">--:--</div>
+      <button class="f tasto-imp" data-azione="impostazioni" aria-label="Impostazioni" title="Impostazioni"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
     </header>
 
-    <div class="schermata" data-schermata="home">
-    <section class="eroe">
+    <div class="schermata catalogo" data-schermata="home">
+    <div id="home-eroe"></div>
+    <section class="eroe" id="saluto-eroe">
       <p class="saluto" id="saluto">Ciao</p>
       <p class="data" id="data"></p>
       <p class="suggerimento" id="suggerimento">Usa le frecce e Invio. <kbd>Esc</kbd> torna indietro.</p>
@@ -38,7 +40,9 @@
       <div class="fila" id="fila-app"></div>
     </section>
 
-    <section class="riga">
+    <div class="contenuto-catalogo" id="home-titoli"></div>
+
+    <section class="riga" id="riga-salotto">
       <h2>Salotto</h2>
       <div class="fila" id="fila-strumenti">
         <button class="f tessera strumento" data-azione="telecomando"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><circle cx="12" cy="17.5" r="1.2"/></svg><span>Telecomando</span><small>Usa il telefono</small></button>

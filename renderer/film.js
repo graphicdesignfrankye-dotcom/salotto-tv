@@ -3,11 +3,57 @@
 // Usa le funzioni di app.js (api, $, $$, metti, apriPannello, chiudiPannello, apri, imp, avviso, ...).
 'use strict';
 
-const cataloghi = { movie: null, tv: null };   // dati già caricati
+const cataloghi = { movie: null, tv: null, home: null };   // dati già caricati ("home": la home Per te)
 const inCaricamento = { movie: null, tv: null };
 const NOMI_TIPO = { movie: 'Film', tv: 'Serie TV' };
-const contenitore = (tipo) => $(tipo === 'movie' ? '#cat-movie' : '#cat-tv');
-let eroeIndice = { movie: 0, tv: 0 }, timerEroe = null;
+const SCHERMATA_DI = { movie: 'film', tv: 'serie', home: 'home' };
+const contenitore = (tipo) => $({ movie: '#cat-movie', tv: '#cat-tv', home: '#home-eroe' }[tipo]);
+let eroeIndice = { movie: 0, tv: 0, home: 0 }, timerEroe = null;
+let homeCaricata = 0, homeInCorso = false;
+
+// Home "Per te": carosello misto e file di film e serie sotto "Le tue app". Senza chiave TMDB resta la home di prima.
+const HOME_BASE = { carosello: true, film: true, serie: true, servizi: true, salotto: true };
+const sceltaHome = () => ({ ...HOME_BASE, ...(imp && imp.home) });
+async function caricaHome(forza = false) {
+  if (!imp || homeInCorso) return;
+  $('#riga-salotto').hidden = !sceltaHome().salotto;
+  if (!imp.tmdbAttivo) { $('#home-eroe').innerHTML = ''; $('#home-titoli').innerHTML = ''; $('#saluto-eroe').hidden = false; return; }
+  if (cataloghi.home && !forza && Date.now() - homeCaricata < 3 * 60 * 60 * 1000) { avviaEroe('home'); return; }
+  homeInCorso = true;
+  const r = await api.tmdbHome();
+  homeInCorso = false;
+  if (!r.ok) { if (r.manca) imp.tmdbAttivo = false; return; } // la home resta senza titoli; l'errore è nel log
+  cataloghi.home = r;
+  homeCaricata = Date.now();
+  disegnaHome();
+}
+// Dopo aver cambiato le scelte in Impostazioni → Home.
+function applicaHome() {
+  $('#riga-salotto').hidden = !sceltaHome().salotto;
+  if (cataloghi.home && imp.tmdbAttivo) disegnaHome();
+}
+function disegnaHome() {
+  const d = cataloghi.home;
+  const h = sceltaHome();
+  const fuoco = corrente && $('#home-titoli').contains(corrente) ? corrente.dataset.tmdb : null;
+  const eroe = h.carosello ? d.eroe : [];
+  const file = d.file.filter((f) => h[f.sezione] !== false);
+  $('#home-eroe').innerHTML = eroe.length ? htmlEroe('home', eroe) : '';
+  $('#saluto-eroe').hidden = Boolean(eroe.length);
+  $('#home-titoli').innerHTML = file.map(htmlFila).join('') + (file.length || eroe.length ? CREDITI : '');
+  eroeIndice.home = 0;
+  if (eroe.length) mostraEroe('home', false);
+  if (schermata === 'home') avviaEroe('home');
+  if (fuoco) { const t = $(`#home-titoli [data-tmdb="${CSS.escape(fuoco)}"]`); if (t) metti(t); }
+}
+const CREDITI = '<p class="tmdb-crediti">Dati e immagini da TMDB · questo prodotto usa le API di TMDB ma non è approvato né certificato da TMDB</p>';
+const htmlFila = (f) => `<section class="riga"><h2>${escHtml(f.titolo)}</h2><div class="fila">${f.voci.map(locandina).join('')}</div></section>`;
+const htmlEroe = (tipo, eroe) => `<button class="f eroe-tmdb" data-eroe="${tipo}">
+      <span class="eroe-sfondo"></span>
+      <span class="eroe-testo"><span class="eroe-tipo"></span><b class="eroe-titolo"></b><span class="eroe-meta"></span><span class="eroe-trama"></span>
+        <span class="eroe-azione">OK per i dettagli · ◀ ▶ per scorrere</span></span>
+      <span class="eroe-punti">${eroe.map(() => '<i></i>').join('')}</span>
+    </button>`;
 
 // Chiamato da mostraSchermata (app.js) quando si apre la scheda Film o Serie TV.
 async function mostraCatalogo(tipo, forza = false) {
@@ -48,14 +94,9 @@ function disegnaCatalogo(tipo) {
   const box = contenitore(tipo);
   if (!d.file.length) { box.innerHTML = '<div class="cat-vuoto"><h2>Nessun titolo</h2><p>TMDB non ha restituito niente: riprova più tardi.</p></div>'; return; }
   box.innerHTML = `
-    ${d.eroe.length ? `<button class="f eroe-tmdb" data-eroe="${tipo}">
-      <span class="eroe-sfondo"></span>
-      <span class="eroe-testo"><span class="eroe-tipo">${NOMI_TIPO[tipo]} di tendenza</span><b class="eroe-titolo"></b><span class="eroe-meta"></span><span class="eroe-trama"></span>
-        <span class="eroe-azione">OK per i dettagli · ◀ ▶ per scorrere</span></span>
-      <span class="eroe-punti">${d.eroe.map(() => '<i></i>').join('')}</span>
-    </button>` : ''}
-    ${d.file.map((f) => `<section class="riga"><h2>${escHtml(f.titolo)}</h2><div class="fila">${f.voci.map(locandina).join('')}</div></section>`).join('')}
-    <p class="tmdb-crediti">Dati e immagini da TMDB · questo prodotto usa le API di TMDB ma non è approvato né certificato da TMDB</p>`;
+    ${d.eroe.length ? htmlEroe(tipo, d.eroe) : ''}
+    ${d.file.map(htmlFila).join('')}
+    ${CREDITI}`;
   eroeIndice[tipo] = 0;
   mostraEroe(tipo, false);
   avviaEroe(tipo);
@@ -73,6 +114,7 @@ function mostraEroe(tipo, anima = true) {
   const vecchi = [...fondo.querySelectorAll('img')].slice(0, -1);
   if (anima) nuovo.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 600, easing: 'ease' }).onfinish = () => vecchi.forEach((i) => i.remove());
   else vecchi.forEach((i) => i.remove());
+  el.querySelector('.eroe-tipo').textContent = `${NOMI_TIPO[v.tipo] || ''} di tendenza`;
   el.querySelector('.eroe-titolo').textContent = v.titolo;
   el.querySelector('.eroe-meta').textContent = [v.anno, v.voto ? '★ ' + v.voto.toLocaleString('it-IT') : ''].filter(Boolean).join(' · ');
   el.querySelector('.eroe-trama').textContent = v.trama;
@@ -91,15 +133,22 @@ function cambiaEroe(tipo, passo) {
 function avviaEroe(tipo) {
   clearInterval(timerEroe);
   timerEroe = setInterval(() => {
-    const visibile = schermata === (tipo === 'movie' ? 'film' : 'serie') && $('#pannello').hidden && $('#apertura').hidden;
+    const visibile = schermata === SCHERMATA_DI[tipo] && $('#pannello').hidden && $('#apertura').hidden;
     if (visibile) cambiaEroe(tipo, 1);
   }, 9000);
 }
 // Frecce sinistra/destra sul carosello: cambiano titolo invece di spostare il fuoco (chiamata da comando() in app.js).
 function frecciaEroe(att, cmd) {
+  // Su dalla prima fila sotto il carosello: si torna al carosello (non alle schede in alto).
+  if (cmd === 'up' && att && att.closest) {
+    const sch = att.closest('.schermata'), riga = att.closest('.riga');
+    const eroe = sch && sch.querySelector('.eroe-tmdb');
+    const prima = sch && [...sch.querySelectorAll('.riga')].find((r) => r.offsetParent !== null);
+    if (eroe && riga && riga === prima && (eroe.compareDocumentPosition(riga) & Node.DOCUMENT_POSITION_FOLLOWING)) { metti(eroe); return true; }
+  }
   if (!att || !att.classList || !att.classList.contains('eroe-tmdb')) return false;
   if (cmd === 'down') { // dal carosello si scende al primo titolo della prima fila, come su Google TV
-    const primo = att.parentElement.querySelector('.fila .f');
+    const primo = att.closest('.schermata').querySelector('.fila .f');
     if (primo) { metti(primo); return true; }
     return false;
   }
@@ -110,7 +159,7 @@ function frecciaEroe(att, cmd) {
 
 // ---------- scheda del titolo ----------
 async function apriTitolo(tipo, id, tessera) {
-  const base = [...(cataloghi[tipo]?.eroe || []), ...(cataloghi[tipo]?.file || []).flatMap((f) => f.voci)].find((v) => v.id === id);
+  const base = Object.values(cataloghi).filter(Boolean).flatMap((c) => [...c.eroe, ...c.file.flatMap((f) => f.voci)]).find((v) => v.id === id && v.tipo === tipo);
   apriPannello(schedaTitolo(base || { titolo: '', tipo }, null), (s) => { s.classList.add('titolo-tmdb'); $('#pannello').classList.add('pieno'); });
   const r = await api.tmdbDettagli(tipo, id);
   if ($('#pannello').hidden || !$('#scheda').classList.contains('titolo-tmdb')) return; // nel frattempo si è chiuso
@@ -181,7 +230,8 @@ document.addEventListener('click', (e) => {
 
 // Dopo aver salvato o tolto la chiave: si ricarica tutto.
 function catalogoDaRifare() {
-  cataloghi.movie = cataloghi.tv = null;
+  cataloghi.movie = cataloghi.tv = cataloghi.home = null;
+  caricaHome(true);
   if (schermata === 'film') mostraCatalogo('movie');
   if (schermata === 'serie') mostraCatalogo('tv');
 }

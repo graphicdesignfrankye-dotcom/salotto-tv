@@ -27,6 +27,15 @@ const SERVIZI = [
   ['plutotv', /^pluto tv$/i],
   ['skygo', /^sky go$/i],
 ];
+const nomeBreve = (n) => n.replace(/^Amazon /, '').replace('Disney Plus', 'Disney+').replace(/^Rai ?Play$/i, 'RaiPlay');
+// Due elenchi mescolati a turno (film, serie, film, ...), senza doppioni.
+function alterna(a, b) {
+  const fuori = [], visti = new Set();
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    for (const v of [a[i], b[i]]) if (v && !visti.has(v.tipo + v.id)) { visti.add(v.tipo + v.id); fuori.push(v); }
+  }
+  return fuori;
+}
 const appDelServizio = (nome) => (SERVIZI.find(([, re]) => re.test(String(nome || '').trim())) || [])[0] || null;
 
 // Generi mostrati come file, nell'ordine (id di TMDB).
@@ -102,7 +111,7 @@ class Tmdb {
     const visti = new Set();
     const richieste = [
       ['Di tendenza questa settimana', this.chiama(`trending/${tipo}/week`).then(elenco)],
-      ...servizi.map((s) => [`Su ${s.nome.replace(/^Amazon /, '').replace('Disney Plus', 'Disney+').replace(/^Rai ?Play$/i, 'RaiPlay')}`,
+      ...servizi.map((s) => [`Su ${nomeBreve(s.nome)}`,
         scopri({ with_watch_providers: s.id, with_watch_monetization_types: 'flatrate|free|ads' }), s.app]),
       [tipo === 'movie' ? 'Al cinema' : 'In onda ora', this.chiama(tipo === 'movie' ? 'movie/now_playing' : 'tv/on_the_air', { region: 'IT' }).then(elenco)],
       ['I più votati', this.chiama(`${tipo}/top_rated`, { region: 'IT' }).then(elenco)],
@@ -117,6 +126,32 @@ class Tmdb {
     }
     // Carosello: i titoli di tendenza con un'immagine grande, senza ripetizioni.
     const eroe = (file[0] ? file[0].voci : []).filter((v) => v.sfondo && v.trama && !visti.has(v.id) && visti.add(v.id)).slice(0, 6);
+    return { eroe, file };
+  }
+
+  // Home "Per te" come su Google TV: carosello misto film e serie, poi tendenze e una fila per ogni servizio che si ha.
+  async home(appUtente = []) {
+    const elenco = (tipo) => (r) => (r.results || [])
+      .filter((x) => x.poster_path && (!x.media_type || x.media_type === 'movie' || x.media_type === 'tv')).map((x) => voce(x, tipo));
+    const file = [];
+    const aggiungi = async (titolo, p, app, sezione) => {
+      try {
+        const voci = (await p).slice(0, 20);
+        if (voci.length >= 4) file.push({ titolo, app: app || null, sezione, voci });
+      } catch (e) { this.log(`tmdb: fila "${titolo}": ${e.message}`); if (/chiave/.test(e.message)) throw e; }
+    };
+    const tutto = await this.chiama('trending/all/week').then(elenco('movie'));
+    await aggiungi('Film di tendenza', this.chiama('trending/movie/week').then(elenco('movie')), null, 'film');
+    await aggiungi('Serie TV di tendenza', this.chiama('trending/tv/week').then(elenco('tv')), null, 'serie');
+    const [sm, st] = await Promise.all([this.servizi('movie').catch(() => []), this.servizi('tv').catch(() => [])]);
+    const scopri = (tipo, s) => (s ? this.chiama(`discover/${tipo}`, { watch_region: 'IT', sort_by: 'popularity.desc', 'vote_count.gte': 30,
+      with_watch_providers: s.id, with_watch_monetization_types: 'flatrate|free|ads' }).then(elenco(tipo)) : Promise.resolve([]));
+    const app = [...new Set([...sm, ...st].map((s) => s.app))].filter((a) => appUtente.includes(a)).slice(0, 5);
+    for (const a of app) {
+      const m = sm.find((s) => s.app === a), t = st.find((s) => s.app === a);
+      await aggiungi(`Su ${nomeBreve((m || t).nome)}`, Promise.all([scopri('movie', m), scopri('tv', t)]).then(([x, y]) => alterna(x, y)), a, 'servizi');
+    }
+    const eroe = tutto.filter((v) => v.sfondo && v.trama).slice(0, 6);
     return { eroe, file };
   }
 

@@ -10,6 +10,7 @@ const ICONE = {
   sistema: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
   energia: '<path d="M12 3v9"/><path d="M6.3 7.3a8 8 0 1 0 11.4 0"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+  home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>',
   tmdb: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4"/>',
   bluetooth: '<path d="M7 7l10 10-5 4V3l5 4L7 17"/>',
   cuffie: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/>',
@@ -58,6 +59,7 @@ async function impostazioniTV(pagina, fuoco) {
   const trasm = [imp.dlna ? 'DLNA' : '', imp.airplay && ap.installato ? 'AirPlay' : ''].filter(Boolean).join(' e ') || 'Spenta';
   const voci = [
     ['app', 'App', `${imp.app.length} nella home · ordine e modifica`],
+    ['home', 'Home', 'Cosa vedere nella home'],
     ['tmdb', 'Film e Serie TV', imp.tmdbAttivo ? 'Catalogo TMDB collegato' : 'Aggiungi la chiave TMDB'],
     ['trasmissione', 'Trasmissione', `${trasm} · “${escHtml(imp.nomeRicevitore)}”`],
     ['telecomando', 'Telecomando', imp.telefoniAbbinati ? `${imp.telefoniAbbinati} telefoni abbinati` : 'Usa il telefono come telecomando'],
@@ -223,6 +225,31 @@ const PAGINE = {
           : lista.length ? lista.map((d) => riga(d, 'data-bt-abbinato')).join('') : '<p class="sotto">Nessun dispositivo abbinato.</p>';
       });
     }, torna('bluetooth'));
+  },
+
+  async home(fuoco) {
+    const h = sceltaHome();
+    const senza = !imp.tmdbAttivo ? ' (serve la chiave TMDB)' : '';
+    const voci = [
+      ['carosello', 'Carosello in alto', 'Film e serie di tendenza a tutto schermo' + senza],
+      ['film', 'Film di tendenza', 'Una fila di locandine' + senza],
+      ['serie', 'Serie TV di tendenza', 'Una fila di locandine' + senza],
+      ['servizi', 'Su Netflix, Prime Video, …', 'Una fila per ogni servizio che hai nella home' + senza],
+      ['salotto', 'Fila Salotto', 'Telecomando, Trasmetti, Store, Impostazioni, Spegni'],
+    ];
+    pannelloLaterale(`
+      ${testaPagina('Home', 'Scegli cosa vedere. “Le tue app” si vedono sempre; le Impostazioni sono anche nel tasto accanto all\'ora.')}
+      ${voci.map(([k, t, s], i) => interruttore('home-' + k, h[k], t, s, fuoco ? fuoco === k : i === 0)).join('')}`, (s) => {
+      s.onclick = async (e) => {
+        const b = e.target.closest('[data-int^="home-"]'); if (!b) return;
+        const k = b.dataset.int.slice(5);
+        const nuove = { ...sceltaHome(), [k]: !sceltaHome()[k] };
+        b.setAttribute('aria-checked', nuove[k]);
+        imp.home = nuove;
+        await api.salva('home', nuove);
+        applicaHome();
+      };
+    }, torna('home'));
   },
 
   async tmdb(fuoco, messaggio) {

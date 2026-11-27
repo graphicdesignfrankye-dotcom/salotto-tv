@@ -58,6 +58,13 @@ const api = window.tv || (() => {
         .map((titolo, f) => ({ titolo, voci: Array.from({ length: 14 }, (_, i) => voce(f * 14 + i)) }));
       return { ok: true, eroe: file[0].voci.slice(0, 6), file };
     },
+    tmdbHome: async () => {
+      const f = await api.tmdbSchermata('movie'), s = await api.tmdbSchermata('tv');
+      if (!f.ok) return f;
+      const misto = f.eroe.flatMap((v, i) => [v, s.eroe[i]]).filter(Boolean).slice(0, 6);
+      return { ok: true, eroe: misto, file: [{ titolo: 'Film di tendenza', sezione: 'film', voci: f.file[0].voci }, { titolo: 'Serie TV di tendenza', sezione: 'serie', voci: s.file[0].voci },
+        { titolo: 'Su Netflix', sezione: 'servizi', voci: f.file[1].voci.flatMap((v, i) => [v, s.file[1].voci[i]]) }, { titolo: 'Su Prime Video', sezione: 'servizi', voci: s.file[2].voci }] };
+    },
     tmdbDettagli: async (tipo, id) => {
       await new Promise((r) => setTimeout(r, 500));
       const v = (await api.tmdbSchermata(tipo)).file.flatMap((f) => f.voci).find((x) => x.id === id);
@@ -124,7 +131,8 @@ function metti(el) {
     else if (dx + margine > x + fila.clientWidth) x = dx + margine - fila.clientWidth;
     fila.scrollTo({ left: Math.max(0, x), behavior: 'smooth' });
     const riga = el.closest('.catalogo .riga');
-    if (riga) riga.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // Nella home le file restano dove sono finché si vedono (il carosello in alto resta intero sulle app).
+    if (riga) riga.scrollIntoView({ block: riga.closest('[data-schermata="home"]') ? 'nearest' : 'center', behavior: 'smooth' });
   } else el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 function sposta(dir) {
@@ -190,6 +198,7 @@ function mostraSchermata(nome) {
   if (nome === 'app') disegnaGrigliaApp();
   if (nome === 'programmi') caricaProgrammi();
   if (nome === 'film' || nome === 'serie') mostraCatalogo(nome === 'film' ? 'movie' : 'tv');
+  if (nome === 'home') caricaHome();
 }
 const tessereApp = (lista) => lista.map((a) => `
   <button class="f tessera app ${logoDi(a) ? 'con-logo' : ''}" data-app="${escHtml(a.id)}" style="--colore:${escHtml(a.colore)}">
@@ -640,6 +649,13 @@ function comando(cmd) {
   const campo = att && att.tagName === 'INPUT';
   if (['up', 'down', 'left', 'right'].includes(cmd)) {
     if (frecciaEroe(att, cmd)) return;
+    // Nella barra in alto (schede e tasto Impostazioni) sinistra/destra restano nella barra.
+    if ((cmd === 'left' || cmd === 'right') && att && att.closest && att.closest('.barra')) {
+      const barra = $$('.barra .f').filter((el) => el.offsetParent !== null);
+      const dopo = barra[barra.indexOf(att) + (cmd === 'right' ? 1 : -1)];
+      if (dopo) metti(dopo);
+      return;
+    }
     if (campo && (cmd === 'left' || cmd === 'right')) {
       const fine = cmd === 'left' ? att.selectionStart === 0 : att.selectionEnd === att.value.length;
       if (!fine) { const p = Math.max(0, (att.selectionStart || 0) + (cmd === 'left' ? -1 : 1)); att.setSelectionRange(p, p); return; }
@@ -700,7 +716,8 @@ api.suAppAperta(() => nascondiApertura());
 api.suProgrammiIcone(() => { if (programmi) caricaProgrammi(true); });
 
 // ---------- avvio ----------
-(async () => {
+// Dopo che tutti gli script (film.js, impostazioni.js) sono caricati.
+async function avvio() {
   imp = await api.impostazioni();
   $('#marchio').textContent = imp.nome;
   document.title = imp.nome;
@@ -710,4 +727,6 @@ api.suProgrammiIcone(() => { if (programmi) caricaProgrammi(true); });
   setInterval(orologio, 10_000);
   $('#suggerimento').innerHTML = `Frecce e Invio per scegliere, <kbd>Esc</kbd> per tornare indietro. Da un'app torni qui con <kbd>${escHtml(tastoLeggibile())}</kbd> o col tasto Home del telefono.`;
   metti($('#fila-app .f') || focalizzabili()[0]);
-})();
+  caricaHome();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', avvio); else avvio();
