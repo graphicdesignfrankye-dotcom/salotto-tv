@@ -12,7 +12,18 @@ const { Telecomando, indirizzoLocale } = require('./remote.cjs');
 const { RicevitoreDLNA } = require('./dlna.cjs');
 const { AirPlay } = require('./airplay.cjs');
 const { Loghi } = require('./loghi.cjs');
-const { CanaleEdge } = require('./cdp.cjs');
+const { CanaleEdge, STILE_FUOCO, NAVIGAZIONE } = require('./cdp.cjs');
+// castLabs Electron (Electron for Content Security): Widevine per Netflix & co. dentro Salotto.
+const { components } = require('electron');
+let widevine = false, widevinePronto = Promise.resolve();
+async function preparaWidevine() {
+  if (!components) { log('Widevine: non disponibile (Electron senza castLabs)'); return; }
+  try {
+    await components.whenReady();
+    widevine = true;
+    log('Widevine pronto: ' + JSON.stringify(components.status()));
+  } catch (e) { log('Widevine non pronto: ' + (e && e.message ? e.message : e)); }
+}
 const { Programmi } = require('./programmi.cjs');
 const { Bluetooth } = require('./bluetooth.cjs');
 const { Tmdb, RICERCA } = require('./tmdb.cjs');
@@ -158,13 +169,17 @@ function chiudiVista() {
   vista = null;
 }
 
-function apriInterna(a) {
+function apriInterna(a, drm = false) {
   chiudiVista();
   vista = new WebContentsView({ webPreferences: { partition: `persist:app-${a.id}`, contextIsolation: true, sandbox: true } });
   vista.webContents.session.setPermissionRequestHandler((_wc, perm, cb) => cb(['fullscreen', 'mediaKeySystem'].includes(perm)));
   const wc = vista.webContents;
   if (a.agente && AGENTI[a.agente]) wc.setUserAgent(AGENTI[a.agente]);
   else if (a.agente) wc.setUserAgent(a.agente);
+  // Video protetti: i siti devono vedere un Chrome normale (senza "Electron" nel nome).
+  else if (drm) wc.setUserAgent(wc.getUserAgent().replace(/ (Electron|salotto-tv|Salotto)\/\S+/gi, ''));
+  // Navigazione TV con le frecce (come in Edge): bordo bianco sull'elemento scelto e caroselli.
+  if (drm) wc.on('dom-ready', () => { wc.executeJavaScript(STILE_FUOCO + '\n;' + NAVIGAZIONE).catch(() => {}); });
   wc.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) wc.loadURL(url); return { action: 'deny' }; });
   wc.on('before-input-event', (e, input) => {
     if (input.type === 'keyDown' && (input.key === 'BrowserHome' || input.key === 'F10')) { e.preventDefault(); vaiHome(); }
@@ -214,6 +229,12 @@ async function apriApp(id, extra) {
       return { ok: true };
     }
     const edge = a.modo === 'edge' ? percorsoEdge() : null;
+    // Widevine dentro Salotto: se scelto nelle Impostazioni, oppure se non c'è un browser adatto.
+    if (a.modo === 'edge' && components && (imp.get('drmInterno') || !edge)) {
+      await Promise.race([widevinePronto, new Promise((ok) => setTimeout(ok, 15000))]);
+      if (widevine) { await chiudiEdge(); apriInterna(a, true); log(`${a.nome} dentro Salotto con Widevine`); return { ok: true }; }
+      log('Widevine non pronto: uso il browser');
+    }
     if (!edge) { apriInterna(a); return { ok: true, nota: a.modo === 'edge' ? 'Edge non disponibile: aperta dentro Salotto' : undefined }; }
     chiudiVista();
     await chiudiEdge();
@@ -227,8 +248,16 @@ async function apriApp(id, extra) {
       await tastiera.preparaEdge(); // si annotano le finestre di Edge già aperte
       // Edge dentro Salotto non è mai la finestra "attiva" di Windows: i tasti passano dal canale di controllo.
       args.push('--remote-debugging-pipe');
-      const p = spawn(edge, args, { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });
+      const p = spawn(edge, args, { stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'] });
       p.on('error', (e) => log('Edge non parte: ' + e.message));
+      // Diagnosi: se Edge si chiude da solo, nel log restano codice di uscita e messaggi di errore.
+      const partito = Date.now();
+      let righeErr = 0;
+      p.stderr.on('data', (d) => {
+        for (const r of String(d).split(/\r?\n/)) if (r.trim() && righeErr++ < 12) log('Edge dice: ' + r.trim().slice(0, 300));
+      });
+      p.on('exit', (codice, segnale) => log(`Edge uscito: codice ${codice}${segnale ? ' ' + segnale : ''} dopo ${Date.now() - partito} ms`));
+      log('Edge: ' + edge + ' ' + args.filter((x) => !x.startsWith('--user-agent')).join(' '));
       const c = new CanaleEdge(p.stdio[3], p.stdio[4], log, a.url);
       canaleEdge = c;
       c.on('chiuso', () => { if (canaleEdge === c) { canaleEdge = null; log('canale Edge: chiuso'); } });
@@ -510,7 +539,7 @@ function registraTastoHome() {
 }
 
 // ---------- IPC dall'interfaccia ----------
-const CHIAVI_MODIFICABILI = new Set(['nome', 'app', 'avvioConWindows', 'dlna', 'airplay', 'edgeDentro', 'nomeRicevitore', 'tastoHome', 'home']);
+const CHIAVI_MODIFICABILI = new Set(['nome', 'app', 'avvioConWindows', 'dlna', 'airplay', 'edgeDentro', 'nomeRicevitore', 'tastoHome', 'home', 'drmInterno']);
 
 function appValida(a) {
   if (!a || typeof a !== 'object') return null;
@@ -531,7 +560,7 @@ function appValida(a) {
 }
 
 function registraIPC() {
-  ipcMain.handle('impostazioni', () => ({ ...imp.pubbliche(), piattaforma: process.platform, edge: Boolean(percorsoEdge()), versione: app.getVersion() }));
+  ipcMain.handle('impostazioni', () => ({ ...imp.pubbliche(), piattaforma: process.platform, edge: Boolean(percorsoEdge()), versione: app.getVersion(), widevine: Boolean(components) }));
   ipcMain.handle('salva', (_e, chiave, valore) => {
     if (!CHIAVI_MODIFICABILI.has(chiave)) return false;
     if (chiave === 'app') {
@@ -546,7 +575,7 @@ function registraIPC() {
       if (!valore || typeof valore !== 'object') return false;
       valore = Object.fromEntries(['carosello', 'film', 'serie', 'servizi', 'salotto'].map((k) => [k, valore[k] !== false]));
     }
-    if (chiave === 'avvioConWindows' || chiave === 'dlna' || chiave === 'airplay' || chiave === 'edgeDentro') valore = Boolean(valore);
+    if (chiave === 'avvioConWindows' || chiave === 'dlna' || chiave === 'airplay' || chiave === 'edgeDentro' || chiave === 'drmInterno') valore = Boolean(valore);
     imp.set(chiave, valore);
     if (chiave === 'avvioConWindows') app.setLoginItemSettings({ openAtLogin: valore });
     if (chiave === 'dlna' || chiave === 'nomeRicevitore') avviaDLNA();
@@ -666,6 +695,7 @@ app.whenReady().then(async () => {
   fileLog = path.join(app.getPath('userData'), 'salotto.log');
   imp = new Impostazioni(app.getPath('userData'));
   log(`avvio Salotto ${app.getVersion()} su ${process.platform}`);
+  widevinePronto = preparaWidevine();
   tastiera = new Tastiera(app.getPath('userData'), log);
   tastiera.avvia();
   airplay = new AirPlay(app.getPath('userData'), log);

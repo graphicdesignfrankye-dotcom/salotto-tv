@@ -173,4 +173,4 @@ class CanaleEdge extends EventEmitter {
   }
 }
 
-module.exports = { CanaleEdge, TASTI };
+module.exports = { CanaleEdge, TASTI, STILE_FUOCO, NAVIGAZIONE };

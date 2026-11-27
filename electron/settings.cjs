@@ -36,7 +36,10 @@ function predefinite() {
     tokenTelefoni: [],
     dlna: true,
     airplay: true,
-    edgeDentro: true, // le app che si aprono in Edge stanno dentro la finestra di Salotto
+    edgeDentro: true,
+    // Netflix & co. dentro Salotto con Widevine (castLabs Electron) invece che in Edge/Chrome.
+    drmInterno: true,
+    drmVersione: 2, // le app che si aprono in Edge stanno dentro la finestra di Salotto
     nomeRicevitore: 'Salotto (PC)',
     // Cosa si vede nella home (le app si vedono sempre).
     home: { carosello: true, film: true, serie: true, servizi: true, salotto: true },
@@ -52,6 +55,8 @@ class Impostazioni {
     try {
       const letti = JSON.parse(fs.readFileSync(this.file, 'utf8'));
       this.dati = { ...this.dati, ...letti };
+      // Dalla 0.1.27 Widevine dentro Salotto è la scelta predefinita anche su Windows (prima era spento).
+      if (letti.drmVersione !== 2) { this.dati.drmInterno = true; this.dati.drmVersione = 2; }
     } catch { /* primo avvio: restano le predefinite */ }
     this.salva();
   }

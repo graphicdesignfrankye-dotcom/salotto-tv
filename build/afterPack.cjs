@@ -1,7 +1,18 @@
 // Scrive "Salotto" e la sua icona nell'exe (senza, Windows lo mostra come "Electron").
 const fs = require('fs'); const path = require('path');
 const ResEdit = require('resedit');
+// Firma VMP di castLabs (EVS): senza, Netflix & co. rifiutano Widevine. Va fatta sul pacchetto finito
+// (su Mac prima della firma del codice, che electron-builder fa dopo afterPack).
+function firmaVmp(ctx) {
+  const { execFileSync } = require('child_process');
+  const py = path.join(__dirname, '..', '.evs', 'bin', 'python');
+  if (process.env.SALOTTO_SENZA_VMP || !fs.existsSync(py)) { console.log('  • firma VMP saltata (manca .evs o SALOTTO_SENZA_VMP)'); return; }
+  execFileSync(py, ['-m', 'castlabs_evs.vmp', '--no-ask', 'sign-pkg', ctx.appOutDir], { stdio: 'inherit' });
+  console.log('  • firma VMP fatta in', path.basename(ctx.appOutDir));
+}
+
 exports.default = async function (ctx) {
+  if (ctx.electronPlatformName === 'darwin') { firmaVmp(ctx); return; }
   if (ctx.electronPlatformName !== 'win32') return;
   const exePath = path.join(ctx.appOutDir, ctx.packager.appInfo.productFilename + '.exe');
   const exe = ResEdit.NtExecutable.from(fs.readFileSync(exePath));
@@ -24,4 +35,5 @@ exports.default = async function (ctx) {
   res.outputResource(exe);
   fs.writeFileSync(exePath, Buffer.from(exe.generate()));
   console.log('  • nome "Salotto" scritto in', path.basename(exePath));
+  firmaVmp(ctx);
 };

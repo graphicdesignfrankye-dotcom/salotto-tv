@@ -1,7 +1,7 @@
 {
   "name": "salotto-tv",
   "productName": "Salotto",
-  "version": "0.1.25",
+  "version": "0.1.27",
   "private": true,
   "description": "Trasforma il PC Windows in una TV: launcher a schermo intero, telecomando dal telefono, ricevitore DLNA",
   "main": "electron/main.cjs",
@@ -74,6 +74,10 @@
     "dmg": {
       "title": "Salotto ${version}",
       "artifactName": "Salotto-${version}-mac-${arch}.${ext}"
+    },
+    "electronVersion": "45.2.1+wvcus",
+    "electronDownload": {
+      "mirror": "https://github.com/castlabs/electron-releases/releases/download/"
     }
   },
   "dependencies": {
@@ -82,7 +86,7 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
-    "electron": "45.2.3",
+    "electron": "git+https://github.com/castlabs/electron-releases.git#v45.2.1+wvcus",
     "electron-builder": "26.18.0",
     "resedit": "^3.1.0"
   }

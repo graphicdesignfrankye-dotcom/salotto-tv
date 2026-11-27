@@ -293,9 +293,12 @@ const PAGINE = {
     pannelloLaterale(`
       ${testaPagina('Sistema')}
       ${interruttore('avvioConWindows', imp.avvioConWindows, 'Avvia Salotto all\'accensione', `Il ${pc()} si accende già in modalità TV`, true)}
+      ${imp.widevine ? interruttore('drmInterno', imp.drmInterno, 'Netflix & co. dentro Salotto', imp.drmInterno ? 'Video protetti con Widevine, senza browser (su Netflix di solito fino a 720p)' : `Spento: si aprono in ${imp.piattaforma === 'darwin' ? 'Edge o Chrome' : 'Edge'} (qualità più alta)`) : ''}
       <div class="imp-riga"><b>Tasto per tornare alla home</b><span>${escHtml(tastoLeggibile())} · oppure Home sul telefono</span></div>
       ${imp.piattaforma === 'win32' && !imp.edge ? '<div class="imp-riga"><b>Microsoft Edge non trovato</b><span>Le app “Edge” si aprono dentro Salotto: Netflix & co. potrebbero non funzionare</span></div>' : ''}`, (s) => {
       s.querySelector('[data-int="avvioConWindows"]').onclick = (e) => salvaInterruttore(e.currentTarget, 'avvioConWindows', !imp.avvioConWindows);
+      const drm = s.querySelector('[data-int="drmInterno"]');
+      if (drm) drm.onclick = (e) => salvaInterruttore(e.currentTarget, 'drmInterno', !imp.drmInterno);
     }, torna('sistema'));
   },
 
