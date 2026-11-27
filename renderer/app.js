@@ -25,6 +25,7 @@ const api = window.tv || (() => {
     nuovoPin: async () => '1234', statoLettore: () => {},
     suTelecomando: nulla, suHome: nulla, suLettore: nulla, suTelefoni: nulla, suStatoDLNA: nulla,
     statoAirPlay: async () => ({ attivo: dati.airplay, installato: false, windows: false }), apriSitoAirPlay: async () => {},
+    apriSitoSalotto: async () => { window.open('https://salottotv.vercel.app', '_blank'); },
     loghi: async () => ({}), suLoghiNuovi: nulla, suAvviso: nulla, suAppAperta: nulla,
     programmi: async () => ['Kodi', 'VLC media player', 'Steam', 'Spotify', 'Calcolatrice', 'Paint', 'Blocco note', 'Microsoft Edge', 'Esplora file', 'Xbox']
       .map((nome, i) => ({ id: 'p' + i, nome, icona: '' })),

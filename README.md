@@ -2,6 +2,8 @@
 
 App per Windows e Mac che trasforma il computer in una TV: home a riquadri a schermo intero, si usa con le frecce, con un telecomando USB o con il **telefono come telecomando** (pagina web con PIN, touchpad e tastiera).
 
+**Sito:** [salottotv.vercel.app](https://salottotv.vercel.app) — schermate, funzioni e download per Windows e Mac.
+
 - **App:** Netflix, Prime Video, Disney+, RaiPlay e altre si aprono **dentro** Salotto con Widevine (video protetti, grazie a [castLabs Electron](https://github.com/castlabs/electron-releases)); YouTube nella versione per TV. Le frecce funzionano anche sui siti, caroselli compresi. Su Netflix la qualità con Widevine arriva di solito a 720p: spegnendo Impostazioni → Sistema → "Netflix & co. dentro Salotto" si usano invece Edge o Chrome.
 - **Store:** circa 40 servizi da aggiungere alla home con un tasto, più app e programmi a mano.
 - **Trasmetti al PC:** ricevitore **DLNA** (app Android come Web Video Caster o BubbleUPnP) e **AirPlay** da iPhone, iPad e Mac tramite [uxplay-windows](https://github.com/leapbtw/uxplay-windows), da installare a parte.
@@ -21,7 +23,7 @@ App per Windows e Mac che trasforma il computer in una TV: home a riquadri a sch
 
 ## Installazione
 
-Dall'ultima [release](../../releases/latest):
+Dal [sito](https://salottotv.vercel.app/#scarica) oppure dall'ultima [release](../../releases/latest):
 
 - **Windows:** `Salotto-x.y.z-win-x64.exe`, poi "Solo per me" oppure "Per tutti gli utenti".
 - **Mac con chip Apple (M1, M2, …):** `Salotto-x.y.z-mac-arm64.dmg`.

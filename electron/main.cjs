@@ -640,6 +640,8 @@ function registraIPC() {
     return errore ? { ok: false, errore } : { ok: true };
   });
   // Mac: il ricevitore AirPlay è già nel sistema (Impostazioni → Generali → AirDrop e Handoff).
+  // Sito di Salotto (indirizzo fisso, dalla pagina Informazioni).
+  ipcMain.handle('apri-sito-salotto', () => shell.openExternal('https://salottotv.vercel.app'));
   ipcMain.handle('apri-sito-airplay', () => shell.openExternal(MAC ? 'x-apple.systempreferences:com.apple.AirDrop-Handoff-Settings.extension' : 'https://github.com/leapbtw/uxplay-windows/releases/latest'));
   // Loghi scaricati dai siti per le app che non hanno un logo già dentro Salotto.
   ipcMain.handle('loghi', (_e, ids) => {

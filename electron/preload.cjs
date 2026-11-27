@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('tv', {
   suStatoDLNA: ascolta('stato-dlna'),
   statoAirPlay: () => ipcRenderer.invoke('stato-airplay'),
   apriSitoAirPlay: () => ipcRenderer.invoke('apri-sito-airplay'),
+  apriSitoSalotto: () => ipcRenderer.invoke('apri-sito-salotto'),
   loghi: (ids) => ipcRenderer.invoke('loghi', ids),
   suLoghiNuovi: ascolta('loghi-nuovi'),
   suAvviso: ascolta('avviso'),

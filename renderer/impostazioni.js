@@ -328,12 +328,15 @@ const PAGINE = {
       ['Ricevitore', imp.nomeRicevitore],
       ['Microsoft Edge', imp.edge ? 'Trovato' : (imp.piattaforma === 'win32' ? 'Non trovato' : '—')],
       ['App nella home', String(imp.app.length)],
+      ['Sito', 'salottotv.vercel.app'],
     ];
     pannelloLaterale(`
       ${testaPagina('Informazioni')}
       ${righe.map(([k, v]) => `<div class="imp-riga"><b>${escHtml(k)}</b><span>${escHtml(v)}</span></div>`).join('')}
-      <button class="f imp-voce piccola" data-primo data-p="ok"><span class="imp-testo"><b>Indietro</b></span></button>`, (s) => {
+      <button class="f imp-voce piccola" data-primo data-p="sito"><span class="imp-icona">${icona('info')}</span><span class="imp-testo"><b>Apri il sito di Salotto</b><small>salottotv.vercel.app · novità, aiuto e download</small></span><span class="imp-freccia">›</span></button>
+      <button class="f imp-voce piccola" data-p="ok"><span class="imp-testo"><b>Indietro</b></span></button>`, (s) => {
       s.querySelector('[data-p="ok"]').onclick = torna('info');
+      s.querySelector('[data-p="sito"]').onclick = async () => { await api.apriSitoSalotto(); avviso('Sito aperto nel browser'); };
     }, torna('info'));
   },
 };
