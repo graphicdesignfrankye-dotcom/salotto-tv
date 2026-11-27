@@ -41,17 +41,17 @@
   "redirects": [
     {
       "source": "/download/windows",
-      "destination": "https://github.com/graphicdesignfrankye-dotcom/salotto-tv/releases/download/v0.1.27/Salotto-0.1.27-win-x64.exe",
+      "destination": "https://github.com/graphicdesignfrankye-dotcom/salotto-tv/releases/download/v0.1.28/Salotto-0.1.28-win-x64.exe",
       "permanent": false
     },
     {
       "source": "/download/mac",
-      "destination": "https://github.com/graphicdesignfrankye-dotcom/salotto-tv/releases/download/v0.1.27/Salotto-0.1.27-mac-arm64.dmg",
+      "destination": "https://github.com/graphicdesignfrankye-dotcom/salotto-tv/releases/download/v0.1.28/Salotto-0.1.28-mac-arm64.dmg",
       "permanent": false
     },
     {
       "source": "/download/mac-intel",
-      "destination": "https://github.com/graphicdesignfrankye-dotcom/salotto-tv/releases/download/v0.1.27/Salotto-0.1.27-mac-x64.dmg",
+      "destination": "https://github.com/graphicdesignfrankye-dotcom/salotto-tv/releases/download/v0.1.28/Salotto-0.1.28-mac-x64.dmg",
       "permanent": false
     }
   ]
