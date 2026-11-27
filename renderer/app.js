@@ -225,8 +225,8 @@ function disegnaProgrammi() {
   const g = $('#griglia-programmi');
   const idFuoco = corrente && g.contains(corrente) ? corrente.dataset.programma : null;
   $('#sotto-programmi').textContent = programmi.length
-    ? `${programmi.length} programmi dal menu Start di Windows. OK per aprirli.`
-    : (imp.piattaforma === 'win32' ? 'Nessun programma trovato nel menu Start.' : 'I programmi del PC si vedono solo su Windows.');
+    ? (suMac() ? `${programmi.length} app dalla cartella Applicazioni. OK per aprirle.` : `${programmi.length} programmi dal menu Start di Windows. OK per aprirli.`)
+    : (imp.piattaforma === 'win32' ? 'Nessun programma trovato nel menu Start.' : suMac() ? 'Nessuna app trovata in Applicazioni.' : 'I programmi del PC si vedono solo su Windows e Mac.');
   g.innerHTML = programmi.map((p) => `
     <button class="f tessera programma" data-programma="${escHtml(p.id)}" title="${escHtml(p.nome)}">
       ${p.icona ? `<img class="icona-programma" src="${escHtml(p.icona)}" alt="" draggable="false">` : `<span class="icona-programma iniziale">${escHtml(p.nome.slice(0, 1))}</span>`}
@@ -281,7 +281,10 @@ async function apri(id) {
   // Link e programmi esterni: Salotto non sa quando sono pronti.
   if (a.modo === 'link' || a.modo === 'programma' || imp.piattaforma !== 'win32' && a.modo === 'edge') setTimeout(nascondiApertura, 2500);
 }
-function tastoLeggibile() { return (imp.tastoHome || '').replace('Control', 'Ctrl').replace(/\+/g, ' + '); }
+function tastoLeggibile() { return (imp.tastoHome || '').replace('Control', 'Ctrl').replace('Alt', suMac() ? 'Option' : 'Alt').replace(/\+/g, ' + '); }
+// Mac o PC: per i testi dell'interfaccia.
+const suMac = () => Boolean(imp && imp.piattaforma === 'darwin');
+const pc = () => (suMac() ? 'Mac' : 'PC');
 
 document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-app], [data-azione], [data-programma], .tab');
@@ -328,7 +331,7 @@ const azioni = {
     const info = await api.infoTelecomando();
     apriPannello(`
       <h1>Telecomando dal telefono</h1>
-      <p class="sotto">Il telefono deve essere sulla stessa rete Wi‑Fi del PC.</p>
+      <p class="sotto">Il telefono deve essere sulla stessa rete Wi‑Fi del ${pc()}.</p>
       <div class="telecomando-griglia">
         ${info.qr ? `<img class="qr" src="${info.qr}" alt="Codice QR">` : '<div class="qr"></div>'}
         <div>
@@ -355,13 +358,14 @@ const azioni = {
     // Stesso nome che Salotto dà a uxplay-windows (senza spazi: vedi electron/airplay.cjs).
     const nomeAirPlay = String(imp.nomeRicevitore || 'Salotto').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'Salotto';
-    const statoAp = !ap.windows ? 'Disponibile solo su Windows.'
+    const statoAp = ap.mac ? 'Il Mac ha già il ricevitore AirPlay: attivalo una volta in Impostazioni di Sistema → Generali → AirDrop e Handoff → <b>Ricevitore AirPlay</b>. iPhone e iPad trovano il Mac col suo nome.'
+      : !ap.windows ? 'Disponibile solo su Windows e Mac.'
       : !ap.installato ? 'Serve <b>uxplay-windows</b>, gratuito: installalo una volta col tasto qui sotto, poi riapri Salotto.'
       : ap.attivo ? `L'iPhone lo trova come “${escHtml(nomeAirPlay)}” in Duplica schermo o col tasto AirPlay.` : 'Spento.';
     apriPannello(`
-      <h1>Trasmetti al PC</h1>
+      <h1>Trasmetti al ${pc()}</h1>
       <p class="sotto">Salotto fa da ricevitore <b>DLNA</b>: molte app del telefono trovano “${escHtml(imp.nomeRicevitore)}” tra i dispositivi e ci mandano video, musica e foto.
-      Il Chromecast di Google usa un sistema chiuso che un PC non può ricevere.</p>
+      Il Chromecast di Google usa un sistema chiuso che un ${pc()} non può ricevere.</p>
       <button class="f interruttore" role="switch" aria-checked="${imp.dlna}" data-primo data-p="dlna">
         <span><b>Ricevitore attivo</b><small>Si vede come “${escHtml(imp.nomeRicevitore)}” sulla rete di casa</small></span><span class="leva"></span>
       </button>
@@ -376,23 +380,26 @@ const azioni = {
         <span><b>Ricevitore AirPlay</b><small id="stato-airplay">${statoAp}</small></span><span class="leva"></span>
       </button>
       ${ap.windows && !ap.installato ? '<div class="tasti"><button class="f tasto" data-p="scarica-airplay">Apri la pagina di uxplay-windows</button></div>' : ''}
+      ${ap.mac ? '<div class="tasti"><button class="f tasto" data-p="scarica-airplay">Apri le impostazioni AirPlay del Mac</button></div>' : ''}
       <ol class="passi">
-        <li>Centro di Controllo → <b>Duplica schermo</b> → “${escHtml(nomeAirPlay)}”: si vede tutto lo schermo dell'iPhone</li>
+        <li>Centro di Controllo → <b>Duplica schermo</b> → ${ap.mac ? 'il nome di questo Mac' : `“${escHtml(nomeAirPlay)}”`}: si vede tutto lo schermo dell'iPhone</li>
         <li>Foto, video e musica: tasto <b>AirPlay</b> nell'app</li>
         <li>Netflix, Prime Video e Disney+ di solito non si vedono in AirPlay (schermo nero): aprili da Salotto</li>
       </ol>
-      <p class="sotto">La prima volta Windows chiede se Salotto può usare la rete: scegli <b>Reti private</b>.</p>
+      <p class="sotto">${ap.mac ? 'La prima volta il Mac chiede se Salotto può trovare dispositivi sulla rete locale: scegli <b>Consenti</b>.' : 'La prima volta Windows chiede se Salotto può usare la rete: scegli <b>Reti private</b>.'}</p>
       <div class="tasti"><button class="f tasto primario" data-p="chiudi">Fatto</button></div>`, (s) => {
       s.querySelector('[data-p="chiudi"]').onclick = chiudiPannello;
       const sw = s.querySelector('[data-p="dlna"]');
       sw.onclick = async () => { imp.dlna = !imp.dlna; sw.setAttribute('aria-checked', imp.dlna); await api.salva('dlna', imp.dlna); aggiornaChip(); };
       const swa = s.querySelector('[data-p="airplay"]');
+      if (ap.mac) { swa.querySelector('b').textContent = 'Ricevitore AirPlay del Mac'; swa.querySelector('.leva').hidden = true; swa.removeAttribute('role'); }
       swa.onclick = async () => {
+        if (ap.mac) { await api.apriSitoAirPlay(); return; } // sul Mac lo si accende nelle Impostazioni di Sistema
         imp.airplay = !imp.airplay; swa.setAttribute('aria-checked', imp.airplay); await api.salva('airplay', imp.airplay);
         if (ap.installato) avviso(imp.airplay ? 'AirPlay acceso' : 'Salotto non usa più AirPlay. Per spegnere del tutto uxplay-windows usa la sua icona vicino all\'orologio', 6000);
       };
       const sc = s.querySelector('[data-p="scarica-airplay"]');
-      if (sc) sc.onclick = async () => { await api.apriSitoAirPlay(); avviso('Pagina aperta nel browser: scarica il file .msi e installalo, poi riapri Salotto', 7000); };
+      if (sc) sc.onclick = async () => { await api.apriSitoAirPlay(); avviso(ap.mac ? 'Attiva “Ricevitore AirPlay”, poi torna su Salotto' : 'Pagina aperta nel browser: scarica il file .msi e installalo, poi riapri Salotto', 7000); };
     });
   },
 
@@ -407,8 +414,8 @@ const azioni = {
       <p class="sotto">Cosa vuoi fare?</p>
       <div class="tasti">
         <button class="f tasto" data-primo data-e="sospendi">Sospendi</button>
-        <button class="f tasto" data-e="riavvia">Riavvia il PC</button>
-        <button class="f tasto pericolo" data-e="spegni">Spegni il PC</button>
+        <button class="f tasto" data-e="riavvia">Riavvia il ${pc()}</button>
+        <button class="f tasto pericolo" data-e="spegni">Spegni il ${pc()}</button>
         <button class="f tasto" data-e="esci">Esci da Salotto</button>
         <button class="f tasto primario" data-e="annulla">Annulla</button>
       </div>`, (s) => {
@@ -418,7 +425,7 @@ const azioni = {
         if (a === 'annulla') { chiudiPannello(); return; }
         if ((a === 'spegni' || a === 'riavvia') && b.dataset.conferma !== '1') { b.dataset.conferma = '1'; b.textContent = 'Premi ancora per confermare'; return; }
         const ok = await api.energia(a);
-        if (!ok) avviso('Disponibile solo su Windows');
+        if (!ok) avviso('Disponibile solo su Windows e Mac');
       };
     });
   },
@@ -496,7 +503,7 @@ function apriStore() {
       return voci.length ? `<section class="store-cat"><h3>${escHtml(titolo)}</h3><div class="store-griglia">${voci.map(tessera).join('')}</div></section>` : '';
     }).join('')}
     <section class="store-cat sempre"><h3>Non la trovi?</h3><div class="store-griglia">
-      <button class="f negozio" data-p="mano"><span class="logo piu">+</span><span class="info"><b>Aggiungi a mano</b><small>Qualsiasi sito o programma del PC</small></span></button>
+      <button class="f negozio" data-p="mano"><span class="logo piu">+</span><span class="info"><b>Aggiungi a mano</b><small>Qualsiasi sito o programma del ${pc()}</small></span></button>
     </div></section>
     <p class="sotto" id="store-vuoto" hidden>Nessuna app trovata. Prova con "Aggiungi a mano".</p>
     <div class="tasti"><button class="f tasto primario" data-p="chiudi">Fatto</button></div>`, (s) => {
@@ -533,7 +540,7 @@ function apriStore() {
         await api.salva('app', imp.app.filter((a) => a.id !== v.id));
         avviso(`${v.nome} tolta dalla home`);
       } else {
-        if (v.modo === 'programma' && !(await api.esiste(v.percorso))) {
+        if (v.modo === 'programma' && !(await api.esiste(v.percorso, v.nome))) {
           avviso(`${v.nome} non è installato su questo PC: scaricalo da ${v.scarica || 'internet'}, poi torna qui.`, 6000);
           return;
         }
@@ -720,6 +727,11 @@ api.suProgrammiIcone(() => { if (programmi) caricaProgrammi(true); });
 async function avvio() {
   imp = await api.impostazioni();
   $('#marchio').textContent = imp.nome;
+  if (suMac()) {
+    $('.schermata[data-schermata="programmi"] .titolo-schermata').textContent = 'App del Mac';
+    $('#sotto-programmi').textContent = 'Quelle della cartella Applicazioni. OK per aprirle.';
+    $('[data-azione="trasmetti"] span').textContent = 'Trasmetti al Mac';
+  }
   document.title = imp.nome;
   disegnaApp();
   aggiornaChip();

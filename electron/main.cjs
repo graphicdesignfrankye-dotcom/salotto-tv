@@ -18,6 +18,7 @@ const { Bluetooth } = require('./bluetooth.cjs');
 const { Tmdb, RICERCA } = require('./tmdb.cjs');
 
 const WINDOWS = process.platform === 'win32';
+const MAC = process.platform === 'darwin';
 const IN_FINESTRA = process.argv.includes('--finestra');
 
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
@@ -33,6 +34,7 @@ let videoAirPlay = null; // handle della finestra del video AirPlay incastrata i
 let finestraEdge = null;  // handle della finestra di Edge incastrata in Salotto
 let giroEdge = 0, controlloEdge = null;
 let canaleEdge = null;
+let processoBrowser = null; // Mac: il browser delle app con video protetti (Edge o Chrome), aperto a tutto schermo sopra Salotto
 let programmi = null;
 let tmdb = null;          // catalogo di film e serie (themoviedb.org)
 let bluetooth = null;     // Bluetooth del PC (solo Windows)     // programmi del PC (menu Start) per la schermata "Programmi"    // canale di controllo con Edge (tasti direttamente alla pagina)
@@ -94,6 +96,7 @@ function inPrimoPiano() {
   win.show();
   // Windows non lascia rubare il fuoco a un processo in secondo piano: il trucco "sempre in primo piano" lo permette.
   win.setAlwaysOnTop(true);
+  if (MAC) app.focus({ steal: true });
   win.focus();
   setTimeout(() => win && win.setAlwaysOnTop(false), 300);
   if (!IN_FINESTRA && !win.isFullScreen()) win.setFullScreen(true);
@@ -101,6 +104,13 @@ function inPrimoPiano() {
 
 // ---------- apertura delle app ----------
 function percorsoEdge() {
+  if (MAC) {
+    // Sul Mac: Edge, altrimenti Chrome o Brave (servono per i video protetti di Netflix & co.).
+    const app = ['Microsoft Edge.app/Contents/MacOS/Microsoft Edge', 'Google Chrome.app/Contents/MacOS/Google Chrome', 'Brave Browser.app/Contents/MacOS/Brave Browser'];
+    const cartelle = ['/Applications', path.join(require('os').homedir(), 'Applications')];
+    for (const a of app) for (const c of cartelle) { const p = path.join(c, a); if (fs.existsSync(p)) return p; }
+    return null;
+  }
   if (!WINDOWS) return null;
   const candidati = [
     path.join(process.env['ProgramFiles(x86)'] || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
@@ -118,6 +128,15 @@ function powershell(comando) {
 // Chiude le finestre di Edge aperte da Salotto (solo quelle col nostro profilo, non l'Edge dell'utente).
 async function chiudiEdge() {
   fermaEdgeIncastrato();
+  if (MAC) {
+    const p = processoBrowser;
+    if (!p || p.exitCode !== null) return;
+    processoBrowser = null;
+    p.kill('SIGTERM');
+    for (let i = 0; i < 15 && p.exitCode === null && p.signalCode === null; i++) await new Promise((ok) => setTimeout(ok, 200));
+    if (p.exitCode === null && p.signalCode === null) p.kill('SIGKILL');
+    return;
+  }
   if (!WINDOWS) return;
   const filtro = `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -like '*salotto-edge*' -and $_.CommandLine -notlike '*--type=*' }`;
   const pid = (await powershell(`${filtro} | ForEach-Object { $_.ProcessId }`)).split(/\s+/).filter(Boolean);
@@ -182,6 +201,13 @@ async function apriApp(id, extra) {
   invia('player', 'stop');
   try {
     if (a.modo === 'link') { await shell.openExternal(a.url); return { ok: true }; }
+    if (a.modo === 'programma' && MAC) {
+      // Sul Mac: un'app .app (scelta a mano) o, per i programmi dello Store, quella con lo stesso nome in Applicazioni.
+      const p = /\.app\/?$/i.test(a.percorso || '') ? a.percorso : path.join('/Applications', a.nome + '.app');
+      if (!fs.existsSync(p)) return { ok: false, errore: `${a.nome} non è installato in Applicazioni` };
+      const errore = await shell.openPath(p);
+      return errore ? { ok: false, errore } : { ok: true };
+    }
     if (a.modo === 'programma') {
       if (!a.percorso || !fs.existsSync(a.percorso)) return { ok: false, errore: 'Programma non trovato: ' + (a.percorso || '') };
       spawn(a.percorso, a.argomenti ? String(a.argomenti).split(' ').filter(Boolean) : [], { detached: true, stdio: 'ignore', cwd: path.dirname(a.percorso) }).unref();
@@ -207,6 +233,23 @@ async function apriApp(id, extra) {
       canaleEdge = c;
       c.on('chiuso', () => { if (canaleEdge === c) { canaleEdge = null; log('canale Edge: chiuso'); } });
       c.avvia().catch((e) => log('canale Edge: ' + e.message));
+    } else if (MAC) {
+      // Sul Mac la finestra del browser non si può mettere dentro Salotto: si apre a tutto schermo sopra.
+      // Il canale di controllo serve per i tasti del telefono; la tastiera del Mac va direttamente alla pagina.
+      args.push('--remote-debugging-pipe');
+      const p = spawn(edge, args, { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });
+      processoBrowser = p;
+      p.on('error', (e) => log('browser non parte: ' + e.message));
+      p.on('exit', () => {
+        if (processoBrowser !== p) return;
+        processoBrowser = null;
+        // Chiuso dall'utente (Cmd+Q): si torna alla home.
+        if (attivo === 'edge') { attivo = 'launcher'; inPrimoPiano(); invia('home'); }
+      });
+      const c = new CanaleEdge(p.stdio[3], p.stdio[4], log, a.url);
+      canaleEdge = c;
+      c.on('chiuso', () => { if (canaleEdge === c) { canaleEdge = null; log('canale browser: chiuso'); } });
+      c.avvia().catch((e) => log('canale browser: ' + e.message));
     } else spawn(edge, args, { detached: true, stdio: 'ignore' }).unref();
     attivo = 'edge';
     if (dentro) incastraEdge(a.nome);
@@ -243,6 +286,14 @@ function tastoInVista(nome) {
 
 function comando(cmd, m = {}) {
   if (cmd === 'home') { vaiHome(); return; }
+  // Volume dal telefono sul Mac: volume di sistema.
+  if (MAC && ['volup', 'voldown', 'mute'].includes(cmd)) {
+    const s = { volup: 'set volume output volume ((output volume of (get volume settings)) + 6)',
+      voldown: 'set volume output volume ((output volume of (get volume settings)) - 6)',
+      mute: 'set volume output muted (not (output muted of (get volume settings)))' }[cmd];
+    execFile('osascript', ['-e', s], () => {});
+    return;
+  }
   // Volume e play/pausa: tasti multimediali di Windows (valgono per tutto il PC).
   if (['volup', 'voldown', 'mute'].includes(cmd) && tastiera.tasto(cmd)) return;
   if (cmd === 'playpause' && attivo !== 'launcher' && tastiera.tasto('playpause')) return;
@@ -372,7 +423,7 @@ async function controllaEdge(mio) {
 }
 
 // ---------- AirPlay (uxplay-windows) ----------
-function statoAirPlay() { return { attivo: Boolean(imp.get('airplay')), installato: airplay.installato(), windows: WINDOWS }; }
+function statoAirPlay() { return { attivo: Boolean(imp.get('airplay')), installato: airplay.installato(), windows: WINDOWS, mac: MAC }; }
 
 async function avviaAirPlay() {
   clearInterval(sorveglianza); sorveglianza = null;
@@ -528,7 +579,11 @@ function registraIPC() {
     imp.set('tmdbChiave', chiave); tmdb.dimentica(); log('tmdb: chiave salvata');
     return { ok: true };
   });
-  ipcMain.handle('esiste', (_e, p) => typeof p === 'string' && /\.exe$/i.test(p) && fs.existsSync(p));
+  ipcMain.handle('esiste', (_e, p, nome) => {
+    // Sul Mac i programmi dello Store (Kodi, VLC) si cercano in Applicazioni col loro nome.
+    if (MAC) return typeof nome === 'string' && /^[\w .+-]{1,40}$/.test(nome) && fs.existsSync(path.join('/Applications', nome + '.app'));
+    return typeof p === 'string' && /\.exe$/i.test(p) && fs.existsSync(p);
+  });
   ipcMain.handle('home', () => vaiHome());
   ipcMain.handle('stato-airplay', () => statoAirPlay());
   // Schermata "Programmi": elenco dal menu Start; le icone mancanti arrivano dopo (evento programmi-icone).
@@ -543,7 +598,8 @@ function registraIPC() {
     if ((azione === 'abbina' || azione === 'dimentica') && (typeof id !== 'string' || id.length > 300)) return { ok: false, errore: 'dispositivo non valido' };
     return bluetooth.esegui(azione, id);
   });
-  ipcMain.handle('impostazioni-bluetooth-windows', () => (WINDOWS ? shell.openExternal('ms-settings:bluetooth') : false));
+  ipcMain.handle('impostazioni-bluetooth-windows', () => (WINDOWS ? shell.openExternal('ms-settings:bluetooth')
+    : MAC ? shell.openExternal('x-apple.systempreferences:com.apple.BluetoothSettings') : false));
   ipcMain.handle('apri-programma', async (_e, id) => {
     const p = programmi.percorso(id);
     if (!p) return { ok: false, errore: 'Programma non trovato' };
@@ -554,7 +610,8 @@ function registraIPC() {
     const errore = await shell.openPath(p);
     return errore ? { ok: false, errore } : { ok: true };
   });
-  ipcMain.handle('apri-sito-airplay', () => shell.openExternal('https://github.com/leapbtw/uxplay-windows/releases/latest'));
+  // Mac: il ricevitore AirPlay è già nel sistema (Impostazioni → Generali → AirDrop e Handoff).
+  ipcMain.handle('apri-sito-airplay', () => shell.openExternal(MAC ? 'x-apple.systempreferences:com.apple.AirDrop-Handoff-Settings.extension' : 'https://github.com/leapbtw/uxplay-windows/releases/latest'));
   // Loghi scaricati dai siti per le app che non hanno un logo già dentro Salotto.
   ipcMain.handle('loghi', (_e, ids) => {
     const fuori = {};
@@ -583,7 +640,15 @@ function registraIPC() {
   ipcMain.handle('energia', async (_e, azione) => {
     log('energia: ' + azione);
     if (azione === 'esci') { app.quit(); return true; }
-    if (!WINDOWS) return false; // sul Mac di sviluppo non spegniamo niente
+    if (MAC) {
+      const c = { sospendi: ['pmset', ['sleepnow']],
+        riavvia: ['osascript', ['-e', 'tell application "System Events" to restart']],
+        spegni: ['osascript', ['-e', 'tell application "System Events" to shut down']] }[azione];
+      if (!c) return false;
+      execFile(c[0], c[1], () => {});
+      return true;
+    }
+    if (!WINDOWS) return false;
     const comandi = {
       sospendi: ['rundll32.exe', ['powrprof.dll,SetSuspendState', '0,1,0']],
       riavvia: ['shutdown.exe', ['/r', '/t', '0']],

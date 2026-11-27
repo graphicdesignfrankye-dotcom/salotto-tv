@@ -56,3 +56,30 @@ lati.forEach((n, i) => {
 });
 fs.writeFileSync(path.join(__dirname, 'icon.ico'), Buffer.concat([testa, ...imm]));
 console.log('build/icon.ico', off, 'byte');
+
+// Mac: PNG 1024 px con il margine delle icone di macOS (electron-builder ne fa l'.icns).
+function png(n, margine) {
+  const zlib = require('zlib');
+  const righe = [];
+  for (let y = 0; y < n; y++) {
+    const r = Buffer.alloc(1 + n * 4);
+    for (let x = 0; x < n; x++) {
+      let s = [0, 0, 0, 0];
+      for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
+        const u = ((x + (i + .5) / 2) / n - margine) / (1 - 2 * margine), v = ((y + (j + .5) / 2) / n - margine) / (1 - 2 * margine);
+        const q = u < 0 || u > 1 || v < 0 || v > 1 ? [0, 0, 0, 0] : pixel(u, v);
+        s = [s[0] + q[0] * q[3], s[1] + q[1] * q[3], s[2] + q[2] * q[3], s[3] + q[3]];
+      }
+      const o = 1 + x * 4;
+      r[o] = s[3] ? Math.round(s[0] / s[3] * 255) : 0; r[o + 1] = s[3] ? Math.round(s[1] / s[3] * 255) : 0;
+      r[o + 2] = s[3] ? Math.round(s[2] / s[3] * 255) : 0; r[o + 3] = Math.round(s[3] / 4 * 255);
+    }
+    righe.push(r);
+  }
+  const crc = (b) => { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return ~c >>> 0; };
+  const blocco = (tipo, dati) => { const l = Buffer.alloc(4); l.writeUInt32BE(dati.length); const t = Buffer.from(tipo); const c = Buffer.alloc(4); c.writeUInt32BE(crc(Buffer.concat([t, dati]))); return Buffer.concat([l, t, dati, c]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(n, 0); ihdr.writeUInt32BE(n, 4); ihdr[8] = 8; ihdr[9] = 6;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), blocco('IHDR', ihdr), blocco('IDAT', zlib.deflateSync(Buffer.concat(righe))), blocco('IEND', Buffer.alloc(0))]);
+}
+fs.writeFileSync(path.join(__dirname, 'icon.png'), png(1024, 0.098));
+console.log('build/icon.png 1024 px');

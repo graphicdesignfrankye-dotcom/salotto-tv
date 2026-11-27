@@ -1,6 +1,6 @@
 # Salotto
 
-App per Windows che trasforma il PC in una TV: home a riquadri a schermo intero, si usa con le frecce, con un telecomando USB o con il **telefono come telecomando** (pagina web con PIN, touchpad e tastiera).
+App per Windows e Mac che trasforma il computer in una TV: home a riquadri a schermo intero, si usa con le frecce, con un telecomando USB o con il **telefono come telecomando** (pagina web con PIN, touchpad e tastiera).
 
 - **App:** Netflix, Prime Video, Disney+, RaiPlay e altre si aprono in Microsoft Edge **dentro** la finestra di Salotto (video protetti); YouTube nella versione per TV. Le frecce funzionano anche sui siti, caroselli compresi.
 - **Store:** circa 40 servizi da aggiungere alla home con un tasto, più app e programmi a mano.
@@ -10,11 +10,24 @@ App per Windows che trasforma il PC in una TV: home a riquadri a schermo intero,
 - **Programmi** del PC presi dal menu Start, con le loro icone.
 - **Impostazioni** in stile TV, anche **Bluetooth** (accendi/spegni, abbinati, cerca, abbina, dimentica), avvio all'accensione del PC, tasto `Ctrl+Alt+H` per tornare alla home.
 
-> **Stato:** versione 0.1.24, provata su Windows 11. L'installer non è firmato: al primo avvio Windows (SmartScreen) può mostrare un avviso, si va avanti con "Ulteriori informazioni" → "Esegui comunque".
+> **Stato:** versione 0.1.25, provata su Windows 11 e macOS (Apple Silicon). Gli installer non sono firmati: su Windows SmartScreen può mostrare un avviso ("Ulteriori informazioni" → "Esegui comunque"); sul Mac al primo avvio si va in Impostazioni di Sistema → Privacy e sicurezza → "Apri comunque".
+
+### Sul Mac
+
+- Netflix, Prime Video, Disney+, RaiPlay… si aprono in Microsoft Edge (o Chrome/Brave) a tutto schermo sopra Salotto; `Ctrl+Option+H` o `Cmd+Q` tornano alla home.
+- AirPlay: si usa il ricevitore già presente in macOS (Impostazioni di Sistema → Generali → AirDrop e Handoff → Ricevitore AirPlay).
+- La scheda Programmi mostra le app della cartella Applicazioni.
+- Bluetooth: serve [blueutil](https://github.com/toy/blueutil) (`brew install blueutil`); senza, Salotto apre le Impostazioni Bluetooth del Mac.
 
 ## Installazione
 
-Scarica `Salotto-x.y.z-win-x64.exe` dall'ultima [release](../../releases/latest) e scegli "Solo per me" oppure "Per tutti gli utenti".
+Dall'ultima [release](../../releases/latest):
+
+- **Windows:** `Salotto-x.y.z-win-x64.exe`, poi "Solo per me" oppure "Per tutti gli utenti".
+- **Mac con chip Apple (M1, M2, …):** `Salotto-x.y.z-mac-arm64.dmg`.
+- **Mac Intel:** `Salotto-x.y.z-mac-x64.dmg`.
+
+Sul Mac apri il .dmg e trascina Salotto in Applicazioni.
 
 ## Sviluppo
 
@@ -23,9 +36,10 @@ npm install
 npm start          # a schermo intero (npm run finestra: in una finestra)
 npm test
 npm run dist:win   # installer Windows in release/
+npm run dist:mac   # .dmg per Mac (Apple Silicon e Intel) in release/
 ```
 
-Fatta con Electron. Su Mac parte per sviluppare l'interfaccia; le funzioni di Windows (Edge, tasti, AirPlay) non fanno nulla.
+Fatta con Electron. Le parti che dipendono dal sistema (browser per i video protetti, AirPlay, Programmi, Bluetooth, spegnimento) hanno una versione per Windows e una per Mac.
 
 ## Licenza e marchi
 

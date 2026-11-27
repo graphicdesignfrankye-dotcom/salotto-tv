@@ -1,7 +1,7 @@
 {
   "name": "salotto-tv",
   "productName": "Salotto",
-  "version": "0.1.24",
+  "version": "0.1.25",
   "private": true,
   "description": "Trasforma il PC Windows in una TV: launcher a schermo intero, telecomando dal telefono, ricevitore DLNA",
   "main": "electron/main.cjs",
@@ -11,7 +11,8 @@
     "start": "electron .",
     "finestra": "electron . --finestra",
     "test": "node --test test/*.test.cjs",
-    "dist:win": "electron-builder --win --x64"
+    "dist:win": "electron-builder --win --x64",
+    "dist:mac": "electron-builder --mac --arm64 --x64"
   },
   "build": {
     "appId": "it.salotto.tv",
@@ -48,7 +49,32 @@
       "installerHeaderIcon": "build/icon.ico"
     },
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
-    "afterPack": "build/afterPack.cjs"
+    "afterPack": "build/afterPack.cjs",
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.entertainment",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "NSBluetoothAlwaysUsageDescription": "Salotto mostra e gestisce i dispositivi Bluetooth nelle sue Impostazioni.",
+        "NSLocalNetworkUsageDescription": "Salotto riceve i comandi del telefono e i video DLNA sulla rete di casa.",
+        "NSAppleEventsUsageDescription": "Salotto usa Eventi di Sistema per spegnere o riavviare il Mac quando lo chiedi.",
+        "LSApplicationCategoryType": "public.app-category.entertainment"
+      }
+    },
+    "dmg": {
+      "title": "Salotto ${version}",
+      "artifactName": "Salotto-${version}-mac-${arch}.${ext}"
+    }
   },
   "dependencies": {
     "hls.js": "^1.7.4",

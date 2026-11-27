@@ -8,6 +8,9 @@ const crypto = require('crypto');
 const { execFile } = require('child_process');
 
 const WINDOWS = process.platform === 'win32';
+const MAC = process.platform === 'darwin';
+const os = require('os');
+const esegui = (cmd, args, ms = 20000) => new Promise((ok) => execFile(cmd, args, { timeout: ms }, (e, out) => ok(e ? null : String(out))));
 // Voci del menu Start che non sono programmi da aprire dal divano.
 const ESCLUDI = /disinstall|uninstall|leggimi|readme|guida in linea|\bhelp\b|manuale|manual|documentation|documentazione|sito web|website|licen[sz]|release notes|changelog|novità|^salotto$/i;
 const CARTELLE_SALTATE = /^(startup|esecuzione automatica|avvio automatico)$/i;
@@ -62,6 +65,7 @@ class Programmi {
     this.inCorso = null;
   }
   cartelle() {
+    if (MAC) return ['/Applications', path.join(os.homedir(), 'Applications'), '/System/Applications'];
     const e = process.env;
     return [
       path.join(e.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
@@ -73,6 +77,12 @@ class Programmi {
     try { voci = fs.readdirSync(cartella, { withFileTypes: true }); } catch { return fuori; }
     for (const v of voci) {
       const p = path.join(cartella, v.name);
+      if (MAC) {
+        // Sul Mac i programmi sono cartelle .app (anche dentro sottocartelle come Utility).
+        if (v.isDirectory() && /\.app$/i.test(v.name)) fuori.push(p);
+        else if (v.isDirectory() && livello < 1) this.collegamenti(p, livello + 1, fuori);
+        continue;
+      }
       if (v.isDirectory()) { if (livello < 4 && !CARTELLE_SALTATE.test(v.name)) this.collegamenti(p, livello + 1, fuori); }
       else if (/\.lnk$/i.test(v.name)) fuori.push(p);
     }
@@ -80,13 +90,13 @@ class Programmi {
   }
   // { lista: [{ id, nome, icona }], mancanti: [{ id, percorso }] }
   elenco() {
-    if (!WINDOWS) return { lista: [], mancanti: [] };
+    if (!WINDOWS && !MAC) return { lista: [], mancanti: [] };
     const visti = new Set();
     const lista = [], mancanti = [];
     this.mappa.clear();
     for (const c of this.cartelle()) {
       for (const p of this.collegamenti(c)) {
-        const nome = path.basename(p).replace(/\.lnk$/i, '').trim();
+        const nome = path.basename(p).replace(/\.(lnk|app)$/i, '').trim();
         const chiave = nome.toLowerCase();
         if (!nome || ESCLUDI.test(nome) || visti.has(chiave)) continue;
         visti.add(chiave);
@@ -103,6 +113,7 @@ class Programmi {
   }
   // Crea le icone che mancano; ritorna quante ne ha create.
   icone(mancanti) {
+    if (MAC && mancanti.length) return this.iconeMac(mancanti);
     if (!WINDOWS || !mancanti.length) return Promise.resolve(0);
     if (this.inCorso) return this.inCorso;
     mancanti.forEach((m) => this.provati.add(m.id));
@@ -124,6 +135,37 @@ class Programmi {
           ok(nuove);
         });
     });
+    return this.inCorso;
+  }
+  // Mac: l'icona .icns dell'app (Info.plist → CFBundleIconFile) convertita in PNG 256 px con sips;
+  // per le app che non hanno un .icns si prova l'anteprima di Quick Look (qlmanage).
+  iconeMac(mancanti) {
+    if (this.inCorso) return this.inCorso;
+    mancanti.forEach((m) => this.provati.add(m.id));
+    fs.mkdirSync(this.cartellaIcone, { recursive: true });
+    this.inCorso = (async () => {
+      let nuove = 0;
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'salotto-icone-'));
+      for (const m of mancanti) {
+        const png = path.join(this.cartellaIcone, m.id + '.png');
+        let icns = null;
+        const nome = await esegui('/usr/bin/plutil', ['-extract', 'CFBundleIconFile', 'raw', '-o', '-', path.join(m.percorso, 'Contents', 'Info.plist')], 5000);
+        if (nome && nome.trim()) {
+          const n = nome.trim();
+          icns = path.join(m.percorso, 'Contents', 'Resources', /\.icns$/i.test(n) ? n : n + '.icns');
+          if (!fs.existsSync(icns)) icns = null;
+        }
+        if (icns && await esegui('/usr/bin/sips', ['-s', 'format', 'png', '-Z', '256', icns, '--out', png], 10000) !== null && fs.existsSync(png)) { nuove++; continue; }
+        if (await esegui('/usr/bin/qlmanage', ['-t', '-s', '256', '-o', tmp, m.percorso], 10000) !== null) {
+          const anteprima = path.join(tmp, path.basename(m.percorso) + '.png');
+          if (fs.existsSync(anteprima)) { fs.renameSync(anteprima, png); nuove++; }
+        }
+      }
+      try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* niente */ }
+      this.log(`programmi: ${nuove} icone nuove su ${mancanti.length}`);
+      this.inCorso = null;
+      return nuove;
+    })();
     return this.inCorso;
   }
   percorso(id) { return this.mappa.get(String(id)) || null; }

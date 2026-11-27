@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('tv', {
   tmdbHome: () => ipcRenderer.invoke('tmdb-home'),
   tmdbDettagli: (tipo, id) => ipcRenderer.invoke('tmdb-dettagli', tipo, id),
   tmdbChiave: (chiave) => ipcRenderer.invoke('tmdb-chiave', chiave),
-  esiste: (percorso) => ipcRenderer.invoke('esiste', percorso),
+  esiste: (percorso, nome) => ipcRenderer.invoke('esiste', percorso, nome),
   home: () => ipcRenderer.invoke('home'),
   energia: (azione) => ipcRenderer.invoke('energia', azione),
   infoTelecomando: () => ipcRenderer.invoke('info-telecomando'),

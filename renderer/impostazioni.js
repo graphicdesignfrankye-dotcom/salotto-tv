@@ -64,7 +64,7 @@ async function impostazioniTV(pagina, fuoco) {
     ['trasmissione', 'Trasmissione', `${trasm} · “${escHtml(imp.nomeRicevitore)}”`],
     ['telecomando', 'Telecomando', imp.telefoniAbbinati ? `${imp.telefoniAbbinati} telefoni abbinati` : 'Usa il telefono come telecomando'],
     ['bluetooth', 'Bluetooth', 'Cuffie, casse, controller e tastiere'],
-    ['sistema', 'Sistema', imp.avvioConWindows ? 'Si avvia all\'accensione del PC' : 'Avvio e tasto Home'],
+    ['sistema', 'Sistema', imp.avvioConWindows ? `Si avvia all'accensione del ${pc()}` : 'Avvio e tasto Home'],
     ['energia', 'Spegni e riavvia', 'Sospendi, riavvia, spegni, esci'],
     ['info', 'Informazioni', `Salotto ${escHtml(imp.versione || '')}`],
   ];
@@ -130,16 +130,18 @@ const PAGINE = {
 
   async trasmissione() {
     const ap = await api.statoAirPlay();
-    const statoAp = !ap.windows ? 'Disponibile solo su Windows'
+    const statoAp = ap.mac ? 'Sul Mac si attiva in Impostazioni di Sistema → Generali → AirDrop e Handoff'
+      : !ap.windows ? 'Disponibile solo su Windows e Mac'
       : !ap.installato ? 'Serve uxplay-windows (gratuito): vedi “Trasmetti al PC” nella home'
         : `iPhone, iPad e Mac lo trovano come “${escHtml(nomeAirPlayDi(imp.nomeRicevitore))}”`;
     pannelloLaterale(`
-      ${testaPagina('Trasmissione', 'Video, foto e musica dal telefono al PC')}
+      ${testaPagina('Trasmissione', `Video, foto e musica dal telefono al ${pc()}`)}
       ${interruttore('dlna', imp.dlna, 'Ricevitore DLNA', `App Android come Web Video Caster o BubbleUPnP trovano “${escHtml(imp.nomeRicevitore)}”`, true)}
       ${interruttore('airplay', imp.airplay, 'Ricevitore AirPlay', statoAp)}
       <div class="campo"><label for="nome-ric">Nome del ricevitore (come lo vede il telefono)</label><input class="f" id="nome-ric" value="${escHtml(imp.nomeRicevitore)}" maxlength="40"></div>`, (s) => {
       s.querySelector('[data-int="dlna"]').onclick = async (e) => { await salvaInterruttore(e.currentTarget, 'dlna', !imp.dlna); aggiornaChip(); };
-      s.querySelector('[data-int="airplay"]').onclick = (e) => salvaInterruttore(e.currentTarget, 'airplay', !imp.airplay);
+      s.querySelector('[data-int="airplay"]').onclick = (e) => (ap.mac ? api.apriSitoAirPlay() : salvaInterruttore(e.currentTarget, 'airplay', !imp.airplay));
+      if (ap.mac) s.querySelector('[data-int="airplay"] .leva').hidden = true;
       const nome = s.querySelector('#nome-ric');
       nome.onchange = async () => { await api.salva('nomeRicevitore', nome.value); imp = await api.impostazioni(); aggiornaChip(); avviso('Nome del ricevitore salvato'); };
     }, torna('trasmissione'));
@@ -148,7 +150,7 @@ const PAGINE = {
   async telecomando() {
     const info = await api.infoTelecomando();
     pannelloLaterale(`
-      ${testaPagina('Telecomando', 'Il telefono deve essere sulla stessa rete Wi‑Fi del PC')}
+      ${testaPagina('Telecomando', `Il telefono deve essere sulla stessa rete Wi‑Fi del ${pc()}`)}
       <div class="imp-qr">${info.qr ? `<img class="qr" src="${info.qr}" alt="Codice QR">` : '<div class="qr"></div>'}
         <div><p class="sotto">Inquadra il codice, oppure apri<br><span class="indirizzo">${escHtml(info.url)}</span></p>
         <p class="sotto">PIN <span class="pin">${escHtml(info.pin)}</span></p></div></div>
@@ -170,7 +172,8 @@ const PAGINE = {
         <span class="imp-testo"><b>${escHtml(d.nome)}</b><small>${attr === 'data-bt-abbinato' ? (d.connesso ? 'Collegato' : 'Abbinato, non collegato') + ' · OK due volte per dimenticarlo' : 'OK per abbinarlo'}</small></span>
       </button>`;
     pannelloLaterale(`
-      ${testaPagina('Bluetooth', messaggio ? escHtml(messaggio) : (st.ok ? '' : escHtml('Non riesco a leggere il Bluetooth: ' + (st.errore || ''))))}
+      ${testaPagina('Bluetooth', messaggio ? escHtml(messaggio) : (st.ok || st.manca ? '' : escHtml('Non riesco a leggere il Bluetooth: ' + (st.errore || ''))))}
+      ${!st.ok && st.manca === 'blueutil' ? `<div class="imp-riga"><b>Serve blueutil</b><span>È un programmino gratuito per gestire il Bluetooth del Mac. Apri il Terminale e scrivi <code>brew install blueutil</code> (serve Homebrew, da brew.sh), poi riapri questa pagina. Intanto puoi usare le Impostazioni del Mac qui sotto.</span></div>` : ''}
       ${st.ok && st.presente === false ? '<div class="imp-riga"><b>Nessun Bluetooth</b><span>Questo PC non ha il Bluetooth, oppure è disattivato nel BIOS o in Gestione dispositivi</span></div>' : ''}
       ${st.ok && st.presente !== false ? interruttore('bt', Boolean(st.acceso), 'Bluetooth', st.acceso ? 'Acceso' : 'Spento', !fuoco) : ''}
       ${st.acceso ? `<h3>Dispositivi abbinati</h3>
@@ -178,7 +181,7 @@ const PAGINE = {
         <h3>Nuovi dispositivi</h3>
         <div class="imp-elenco" id="bt-vicini"><p class="sotto">Metti il dispositivo in modalità abbinamento, poi premi Cerca.</p></div>
         <button class="f imp-voce piccola" data-p="cerca"><span class="imp-icona">${icona('bluetooth')}</span><span class="imp-testo"><b>Cerca dispositivi</b><small>Fino a 30 secondi</small></span></button>` : ''}
-      <button class="f imp-voce piccola" data-p="windows"><span class="imp-icona">${icona('sistema')}</span><span class="imp-testo"><b>Impostazioni Bluetooth di Windows</b><small>Per i dispositivi che chiedono un PIN</small></span><span class="imp-freccia">›</span></button>`, (s) => {
+      <button class="f imp-voce piccola" data-p="windows"><span class="imp-icona">${icona('sistema')}</span><span class="imp-testo"><b>Impostazioni Bluetooth ${suMac() ? 'del Mac' : 'di Windows'}</b><small>Per i dispositivi che chiedono un PIN</small></span><span class="imp-freccia">›</span></button>`, (s) => {
       const int = s.querySelector('[data-int="bt"]');
       if (int) int.onclick = async () => {
         int.querySelector('small').textContent = 'Un momento…';
@@ -186,7 +189,7 @@ const PAGINE = {
         await PAGINE.bluetooth('bt', r.ok ? (r.esito === 'Allowed' ? '' : r.messaggio) : r.errore);
       };
       s.querySelector('[data-p="windows"]').onclick = async () => {
-        if (!(await api.impostazioniBluetoothWindows())) avviso('Disponibile solo su Windows');
+        if (!(await api.impostazioniBluetoothWindows())) avviso('Disponibile solo su Windows e Mac');
       };
       const cerca = s.querySelector('[data-p="cerca"]');
       if (cerca) cerca.onclick = async () => {
@@ -289,7 +292,7 @@ const PAGINE = {
   async sistema() {
     pannelloLaterale(`
       ${testaPagina('Sistema')}
-      ${interruttore('avvioConWindows', imp.avvioConWindows, 'Avvia Salotto all\'accensione', 'Il PC si accende già in modalità TV', true)}
+      ${interruttore('avvioConWindows', imp.avvioConWindows, 'Avvia Salotto all\'accensione', `Il ${pc()} si accende già in modalità TV`, true)}
       <div class="imp-riga"><b>Tasto per tornare alla home</b><span>${escHtml(tastoLeggibile())} · oppure Home sul telefono</span></div>
       ${imp.piattaforma === 'win32' && !imp.edge ? '<div class="imp-riga"><b>Microsoft Edge non trovato</b><span>Le app “Edge” si aprono dentro Salotto: Netflix & co. potrebbero non funzionare</span></div>' : ''}`, (s) => {
       s.querySelector('[data-int="avvioConWindows"]').onclick = (e) => salvaInterruttore(e.currentTarget, 'avvioConWindows', !imp.avvioConWindows);
@@ -301,15 +304,15 @@ const PAGINE = {
       ${testaPagina('Spegni e riavvia')}
       <div class="imp-elenco">
         <button class="f imp-voce piccola" data-e="sospendi" data-primo><span class="imp-testo"><b>Sospendi</b></span></button>
-        <button class="f imp-voce piccola" data-e="riavvia"><span class="imp-testo"><b>Riavvia il PC</b></span></button>
-        <button class="f imp-voce piccola" data-e="spegni"><span class="imp-testo"><b>Spegni il PC</b></span></button>
-        <button class="f imp-voce piccola" data-e="esci"><span class="imp-testo"><b>Esci da Salotto</b><small>Torna al desktop di Windows</small></span></button>
+        <button class="f imp-voce piccola" data-e="riavvia"><span class="imp-testo"><b>Riavvia il ${pc()}</b></span></button>
+        <button class="f imp-voce piccola" data-e="spegni"><span class="imp-testo"><b>Spegni il ${pc()}</b></span></button>
+        <button class="f imp-voce piccola" data-e="esci"><span class="imp-testo"><b>Esci da Salotto</b><small>${suMac() ? 'Torna alla scrivania del Mac' : 'Torna al desktop di Windows'}</small></span></button>
       </div>`, (s) => {
       s.querySelector('.imp-elenco').onclick = async (e) => {
         const b = e.target.closest('[data-e]'); if (!b) return;
         const a = b.dataset.e;
         if ((a === 'spegni' || a === 'riavvia') && b.dataset.conferma !== '1') { b.dataset.conferma = '1'; b.querySelector('b').textContent = 'Premi ancora per confermare'; return; }
-        if (!(await api.energia(a))) avviso('Disponibile solo su Windows');
+        if (!(await api.energia(a))) avviso('Disponibile solo su Windows e Mac');
       };
     }, torna('energia'));
   },

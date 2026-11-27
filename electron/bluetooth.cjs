@@ -9,6 +9,10 @@ const path = require('path');
 const { execFile } = require('child_process');
 
 const WINDOWS = process.platform === 'win32';
+const MAC = process.platform === 'darwin';
+// blueutil (brew install blueutil): l'unico modo semplice di gestire il Bluetooth del Mac da un programma.
+const BLUEUTIL = ['/opt/homebrew/bin/blueutil', '/usr/local/bin/blueutil'];
+const INDIRIZZO = /^[0-9a-f]{2}([-:][0-9a-f]{2}){5}$/i;
 
 const SCRIPT = String.raw`
 param([string]$Azione)
@@ -112,7 +116,8 @@ class Bluetooth {
     this.coda = Promise.resolve(); // un'operazione alla volta
   }
   esegui(azione, id) {
-    if (!WINDOWS) return Promise.resolve({ ok: false, errore: 'Il Bluetooth si gestisce solo su Windows' });
+    if (MAC) return this.coda = this.coda.catch(() => {}).then(() => this.mac(azione, id));
+    if (!WINDOWS) return Promise.resolve({ ok: false, errore: 'Il Bluetooth si gestisce solo su Windows e Mac' });
     const lavoro = () => new Promise((ok) => {
       fs.writeFileSync(this.script, '﻿' + SCRIPT, 'utf8');
       const env = { ...process.env, SALOTTO_BT_ID: id ? String(id) : '' };
@@ -133,5 +138,28 @@ class Bluetooth {
     return p;
   }
 }
+
+// Mac: stesse risposte della versione Windows, prese da blueutil.
+Bluetooth.prototype.mac = async function (azione, id) {
+  const bu = BLUEUTIL.find((p) => fs.existsSync(p));
+  if (!bu) return { ok: false, manca: 'blueutil', errore: 'Per gestire il Bluetooth da Salotto serve blueutil' };
+  const via = (args, ms = 30000) => new Promise((ok) => execFile(bu, args, { timeout: ms }, (e, out, err) => ok({ e, out: String(out || ''), err: String(err || '').trim() })));
+  const json = (r) => { try { return JSON.parse(r.out); } catch { return null; } };
+  const dispositivo = (d) => ({ id: d.address, nome: d.name || d.address, abbinato: Boolean(d.paired), connesso: Boolean(d.connected), categoria: '' });
+  let r;
+  if (azione === 'radio') { r = await via(['-p']); if (r.e) return { ok: false, errore: r.err || r.e.message }; return { ok: true, presente: true, acceso: r.out.trim() === '1' }; }
+  if (azione === 'accendi' || azione === 'spegni') { r = await via(['-p', azione === 'accendi' ? '1' : '0']); return r.e ? { ok: false, errore: r.err || r.e.message } : { ok: true, esito: 'Allowed', messaggio: 'Fatto' }; }
+  if (azione === 'abbinati') { r = await via(['--paired', '--format', 'json']); const l = json(r); return l ? { ok: true, dispositivi: l.map(dispositivo) } : { ok: false, errore: r.err || 'risposta non valida' }; }
+  if (azione === 'cerca') { r = await via(['--inquiry', '12', '--format', 'json'], 40000); const l = json(r); return l ? { ok: true, dispositivi: l.filter((d) => !d.paired).map(dispositivo) } : { ok: false, errore: r.err || 'ricerca non riuscita' }; }
+  if (azione === 'abbina' || azione === 'dimentica') {
+    if (!INDIRIZZO.test(String(id || ''))) return { ok: false, errore: 'dispositivo non valido' };
+    if (azione === 'dimentica') { r = await via(['--unpair', id]); return r.e ? { ok: false, errore: r.err || 'Non riuscito' } : { ok: true, esito: 'Unpaired', messaggio: 'Dimenticato' }; }
+    r = await via(['--pair', id], 60000);
+    if (r.e) return { ok: true, esito: 'Failed', messaggio: /pin/i.test(r.err) ? 'Questo dispositivo chiede un PIN: abbinalo dalle Impostazioni del Mac' : 'Abbinamento non riuscito: ' + (r.err || 'riprova') };
+    await via(['--connect', id], 20000);
+    return { ok: true, esito: 'Paired', messaggio: 'Abbinato' };
+  }
+  return { ok: false, errore: 'azione non valida' };
+};
 
 module.exports = { Bluetooth, ESITI };
